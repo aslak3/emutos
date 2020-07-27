@@ -686,6 +686,9 @@ struct video_mode {
 };
 
 static const struct video_mode vmode_table[] = {
+#ifdef MACHINE_MAXI000
+    { 2,  640, 480},		/* MAXI000 Beta FPGA mode */
+#endif
     { 4,  320, 200},            /* rez=0: ST low */
     { 2,  640, 200},            /* rez=1: ST medium */
     { 1,  640, 400},            /* rez=2: ST high */

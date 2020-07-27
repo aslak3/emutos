@@ -568,8 +568,11 @@ timerc_end:
         // exception stack frame pointing to a pseudo-VBL routine. In that case,
         // the RTE below jumps to that pseudo-VBL. Then that one will return to
         // our caller with RTE.
-        rte
-
+#ifdef MACHINE_MAXI000
+	rts
+#else
+	rte
+#endif
 
 // ==== Critical error handler functions =====================================
 

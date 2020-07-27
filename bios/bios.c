@@ -67,7 +67,9 @@
 #if WITH_CLI
 #include "../cli/clistub.h"
 #endif
-
+#ifdef MACHINE_MAXI000
+#include "maxi000.h"
+#endif
 
 
 /*==== Defines ============================================================*/
@@ -354,6 +356,11 @@ static void bios_init(void)
     /* Initialize the system 200 Hz timer */
     KDEBUG(("init_system_timer()\n"));
     init_system_timer();
+
+#if defined(MACHINE_MAXI000)
+    maxi000_init();
+    KDEBUG(("maxi000_init()\n"));
+#endif
 
     /* Initialize the RS-232 port(s) */
     KDEBUG(("chardev_init()\n"));

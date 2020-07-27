@@ -207,6 +207,10 @@ ifeq (1,$(COLDFIRE))
   bios_src += coldfire.c coldfire2.S spi_cf.c
 endif
 
+ifeq (1,$(MAXI000))
+  bios_src += maxi000.c maxi0002.S
+endif
+
 #
 # source code in bdos/
 #
@@ -578,6 +582,29 @@ amiga:
 
 $(ROM_AMIGA): emutos.img mkrom
 	./mkrom amiga $< $(ROM_AMIGA)
+
+#
+# MAXI000 Image
+#
+
+TOCLEAN += *.img
+
+IMG_MAXI000 = emutos-maxi000.img
+MAXI000_DEFS =
+
+.PHONY: maxi000
+NODEP += maxi000
+maxi000: UNIQUE = $(COUNTRY)
+maxi000: OPTFLAGS = $(SMALL_OPTFLAGS)
+maxi000: override DEF += -DTARGET_MAXI000_IMG $(MAXI000_DEFS)
+maxi000:
+	@echo "# Building MAXI000 EmuTOS into $(IMG_MAXI000)"
+	$(MAKE) MAXI000=1 CPUFLAGS='$(CPUFLAGS)' DEF='$(DEF)' OPTFLAGS='$(OPTFLAGS)' UNIQUE=$(UNIQUE) IMG_MAXI000=$(IMG_MAXI000) $(IMG_MAXI000)
+	@MEMBOT=$(call SHELL_SYMADDR,__end_os_stram,emutos.map);\
+	echo "# RAM used: $$(($$MEMBOT)) bytes ($$(($$MEMBOT - $(MEMBOT_TOS206))) bytes more than TOS 2.06)"
+
+$(IMG_MAXI000): emutos.img
+	cp $< $(IMG_MAXI000)
 
 # Special Amiga ROM optimized for Vampire V2
 

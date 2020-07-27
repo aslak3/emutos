@@ -795,6 +795,8 @@ const char * machine_name(void)
     return amiga_machine_name();
 #elif defined(MACHINE_M548X)
     return m548x_machine_name();
+#elif defined(MACHINE_MAXI000)
+    return "MAXI000";
 #else
     return guess_machine_name();
 #endif
