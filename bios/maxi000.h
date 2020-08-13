@@ -4,6 +4,7 @@ void maxi000_init(void);
 
 /* vectors */
 
+#define VRESET (*(uint32_t volatile *)(0))
 #define VUSER128 (*(uint32_t volatile *)(512))
 #define VUSER129 (*(uint32_t volatile *)(516))
 #define VUSER130 (*(uint32_t volatile *)(520))
@@ -14,12 +15,20 @@ void maxi000_init(void);
 #define SYSCONF (*(uint16_t volatile *)(ALPHABASE+0))
 #define LED  (*(uint16_t volatile *)(ALPHABASE+2))
 #define BUZZER (*(uint16_t volatile *)(ALPHABASE+4))
+#define DMASRC (*(uint32_t volatile *)(ALPHABASE+0x6))
+#define DMASRCHI (*(uint16_t volatile *)(ALPHABASE+0x6))
+#define DMASRCLO (*(uint16_t volatile *)(ALPHABASE+0x8))
+#define DMADSTHI (*(uint16_t volatile *)(ALPHABASE+0xa))
+#define DMADSTLO (*(uint16_t volatile *)(ALPHABASE+0xc))
+#define DMALEN (*(uint16_t volatile *)(ALPHABASE+0xe))
+#define DMAFLAGS (*(uint16_t volatile *)(ALPHABASE+0x10))
 
 #define BASE16C654 0x102000
 
 /* beta */
 
 #define BETABASE 0x101000
+#define VGARWADDR (*(uint32_t volatile *)(BETABASE+0))
 #define VGARWADDRHI (*(uint16_t volatile *)(BETABASE+0))
 #define VGARWADDRLO (*(uint16_t volatile *)(BETABASE+2))
 #define VGADATA (*(uint16_t volatile *)(BETABASE+4))

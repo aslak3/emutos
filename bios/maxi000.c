@@ -2,6 +2,7 @@
 
 #include "emutos.h"
 #include "ikbd.h"               /* for call_mousevec() */
+#include "tosvars.h"
 
 #include "maxi000.h"
 
@@ -10,6 +11,8 @@
 #define STATE_STREAMING 2
 
 #define CMD_ENABLE 0xf4
+
+#define SLICE_LEN 4800
 
 extern void int_vbl(void);
 extern void maxi000_int_timer(void);
@@ -28,12 +31,18 @@ struct mouse_packet
 volatile uint16_t state = STATE_IDLE;
 volatile uint16_t packet_counter = 0;
 volatile struct mouse_packet mp;
+
 volatile int vbl_count = 0;
+volatile int slice_count = 0;
+
+volatile uint32_t this_slice_ad;
+volatile uint32_t vram_pointer;
 
 void maxi000_init(void)
 {
 	state = STATE_IDLE;
 
+	VRESET = 0;
 	VUSER129 = maxi000_int_mouse;
 	VUSER130 = maxi000_int_vbl;
 	VUSER128 = maxi000_int_timer;
@@ -41,12 +50,13 @@ void maxi000_init(void)
 	TIMERCOUNT = 5 * 8000U;
 
 	PS2ASCANCODE = CMD_ENABLE;
+
+	slice_count = 0;
 }
 
 static void  __attribute__ ((interrupt)) maxi000_int_mouse(void)
 {
 	uint8_t data = PS2ASCANCODE;
-	SPIDATA = 0x03;
 	
 	switch (state)
 	{
@@ -70,6 +80,9 @@ static void  __attribute__ ((interrupt)) maxi000_int_mouse(void)
 			if (packet_counter >= 3)
 			{
 				SBYTE packet[3];
+
+				packet_counter = 0;
+
 				packet[0] = 0xf8;
 				if (mp.mouse_state & 0x01) {
 					packet[0] |= 0x02;
@@ -92,7 +105,6 @@ static void  __attribute__ ((interrupt)) maxi000_int_mouse(void)
 				packet[2] = -y;
 
 				call_mousevec(packet);
-				packet_counter = 0;
 			}
 			break;
 
@@ -104,13 +116,21 @@ static void  __attribute__ ((interrupt)) maxi000_int_mouse(void)
 static void  __attribute__ ((interrupt)) maxi000_int_vbl(void)
 {
 	TIMERCOUNT;
-	
+
 	int_vbl();
 
-	vbl_count++;
-	if ((vbl_count % 16) == 0) {
-		SPIDATA = 0x03;
-		maxi000_update_display();
-		SPIDATA = 0x04;
+	if (slice_count == 0)
+	{
+		this_slice_ad = (uint32_t) v_bas_ad;
+		VGARWADDR = 0;
 	}
+
+	DMASRC = this_slice_ad;
+	DMALEN = SLICE_LEN;
+	DMAFLAGS = 3;
+
+	slice_count++;
+	this_slice_ad += SLICE_LEN * 2;
+
+	if (slice_count > 7) slice_count = 0;
 }
