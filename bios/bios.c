@@ -67,8 +67,8 @@
 #if WITH_CLI
 #include "../cli/clistub.h"
 #endif
-#ifdef MACHINE_MAXI000
-#include "maxi000.h"
+#ifdef MACHINE_MAXI030
+#include "maxi030.h"
 #endif
 
 
@@ -357,9 +357,9 @@ static void bios_init(void)
     KDEBUG(("init_system_timer()\n"));
     init_system_timer();
 
-#if defined(MACHINE_MAXI000)
-    maxi000_init();
-    KDEBUG(("maxi000_init()\n"));
+#if defined(MACHINE_MAXI030)
+    maxi030_init();
+    KDEBUG(("maxi030_init()\n"));
 #endif
 
     /* Initialize the RS-232 port(s) */
@@ -712,6 +712,8 @@ void biosmain(void)
         bootdev = initinfo(&shiftbits); /* show the welcome screen */
     else
         shiftbits = kbshift(-1);
+        
+    cprintf("done initinfo ");
 
     KDEBUG(("bootdev = %d\n", bootdev));
 
@@ -744,18 +746,25 @@ void biosmain(void)
 
     autoexec();                 /* autoexec PRGs from AUTO folder */
 
+    cprintf("1 ");
+
     /* clear commandline */
 
     if(cmdload != 0) {
         /* Pexec a program called COMMAND.PRG */
         Pexec(PE_LOADGO, "COMMAND.PRG", "", NULL);
     } else if (exec_os) {
+        cprintf("2 ");
         /* start the default (ROM) shell */
         PD *pd;
+        cprintf("3 ");
         pd = (PD *) Pexec(PE_BASEPAGEFLAGS, (char*)PF_STANDARD, "", NULL);
+        cprintf("4 ");
         pd->p_tbase = (UBYTE *) exec_os;
         pd->p_tlen = pd->p_dlen = pd->p_blen = 0;
+        cprintf("5 ");
         Pexec(PE_GO, "", (char*)pd, NULL);
+        cprintf("6 ");
     }
 
 #if CONF_WITH_SHUTDOWN

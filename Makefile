@@ -133,10 +133,12 @@ LIBS = -lgcc
 LDFLAGS = -Wl,-T,obj/emutospp.ld
 PCREL_LDFLAGS = -Wl,--oformat=binary,-Ttext=0,--entry=0
 
+#-Ttext=0x1000000
+
 # C compiler
 CC = $(TOOLCHAIN_PREFIX)gcc
 CPP = $(CC) -E
-CPUFLAGS = -m68000
+CPUFLAGS = -m68030
 MULTILIBFLAGS = $(CPUFLAGS) -mshort
 INC = -Iinclude
 OTHERFLAGS = -fomit-frame-pointer -fno-common
@@ -207,8 +209,8 @@ ifeq (1,$(COLDFIRE))
   bios_src += coldfire.c coldfire2.S spi_cf.c
 endif
 
-ifeq (1,$(MAXI000))
-  bios_src += maxi000.c maxi0002.S
+ifeq (1,$(MAXI030))
+  bios_src += maxi030.c maxi0302.S
 endif
 
 #
@@ -584,27 +586,27 @@ $(ROM_AMIGA): emutos.img mkrom
 	./mkrom amiga $< $(ROM_AMIGA)
 
 #
-# MAXI000 Image
+# MAXI030 Image
 #
 
 TOCLEAN += *.img
 
-IMG_MAXI000 = emutos-maxi000.img
-MAXI000_DEFS =
+IMG_MAXI030 = emutos-maxi030.img
+MAXI030_DEFS =
 
-.PHONY: maxi000
-NODEP += maxi000
-maxi000: UNIQUE = $(COUNTRY)
-maxi000: OPTFLAGS = $(SMALL_OPTFLAGS)
-maxi000: override DEF += -DTARGET_MAXI000_IMG $(MAXI000_DEFS)
-maxi000:
-	@echo "# Building MAXI000 EmuTOS into $(IMG_MAXI000)"
-	$(MAKE) MAXI000=1 CPUFLAGS='$(CPUFLAGS)' DEF='$(DEF)' OPTFLAGS='$(OPTFLAGS)' UNIQUE=$(UNIQUE) IMG_MAXI000=$(IMG_MAXI000) $(IMG_MAXI000)
+.PHONY: maxi030
+NODEP += maxi030
+maxi030: UNIQUE = $(COUNTRY)
+maxi030: OPTFLAGS = $(SMALL_OPTFLAGS)
+maxi030: override DEF += -DTARGET_MAXI030_IMG $(MAXI030_DEFS)
+maxi030:
+	@echo "# Building MAXI030 EmuTOS into $(IMG_MAXI030)"
+	$(MAKE) MAXI030=1 CPUFLAGS='$(CPUFLAGS)' DEF='$(DEF)' OPTFLAGS='$(OPTFLAGS)' UNIQUE=$(UNIQUE) IMG_MAXI030=$(IMG_MAXI030) $(IMG_MAXI030)
 	@MEMBOT=$(call SHELL_SYMADDR,__end_os_stram,emutos.map);\
 	echo "# RAM used: $$(($$MEMBOT)) bytes ($$(($$MEMBOT - $(MEMBOT_TOS206))) bytes more than TOS 2.06)"
 
-$(IMG_MAXI000): emutos.img
-	cp $< $(IMG_MAXI000)
+$(IMG_MAXI030): emutos.img
+	cp $< $(IMG_MAXI030)
 
 # Special Amiga ROM optimized for Vampire V2
 
@@ -1120,7 +1122,7 @@ check_target_exists:
 
 .PHONY: dsm
 NODEP += dsm
-dsm: VMA = $(shell sed -e '/^\.text/!d;s/[^0]*//;s/ .*//;q' emutos.map)
+#dsm: VMA = $(shell sed -e '/^\.text/!d;s/[^0]*//;s/ .*//;q' emutos.map)
 dsm: check_target_exists
 	$(OBJDUMP) --target=binary --architecture=m68k --adjust-vma=$(VMA) -D emutos.img \
 	  | sed -e '/^ *[0-9a-f]*:/!d;s/^    /0000/;s/^   /000/;s/^  /00/;s/^ /0/;s/:	/: /' > $(DSM_TMP_CODE)

@@ -17,6 +17,8 @@
 #include "asmdefs.h"
 #include "memory.h"
 
+#define EMUTOS_LIVES_IN_RAM 0
+
 // ==== Definitions ==========================================================
 
         .globl  meminit                 // memory initialization

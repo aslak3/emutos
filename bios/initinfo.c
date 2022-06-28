@@ -392,6 +392,7 @@ WORD initinfo(ULONG *pshiftbits)
 #endif
         }
         while (hz_200 < end);
+        cprintf("END OF hz_200!!!");
 
         /* Wait while Shift is pressed, and normal key is not pressed */
         while ((shiftbits & MODE_SHIFT) && !bconstat2())
@@ -401,9 +402,11 @@ WORD initinfo(ULONG *pshiftbits)
 #endif
             shiftbits = kbshift(-1);
         }
+        cprintf("1");
 
         /* if a non-modifier key was pressed, examine it */
         if (bconstat2()) {
+            cprintf("2");
             int c = LOBYTE(bconin2());
 
             c = toupper(c);
@@ -426,6 +429,7 @@ WORD initinfo(ULONG *pshiftbits)
          */
         cprint_devices(dev);
     }
+    cprintf("3");
 
     /*
      * on exit, restore (pop) cursor position (neatness), then
@@ -439,6 +443,7 @@ WORD initinfo(ULONG *pshiftbits)
 #endif
 
     *pshiftbits = shiftbits;
+    cprintf("4");
     return dev;
 }
 
