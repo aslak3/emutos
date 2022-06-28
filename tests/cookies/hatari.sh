@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) 2019 The EmuTOS development team
+# Copyright (C) 2019-2021 The EmuTOS development team
 #
 # Authors:
 #  THH   Thomas Huth
@@ -15,7 +15,7 @@ if ! command -v hatari >/dev/null 2>&1; then
 fi
 
 if [ -z "$EMUTOS" ]; then
-    export EMUTOS=../../etos512k.img
+    export EMUTOS=../../etos1024k.img
 fi
 
 export SDL_VIDEODRIVER=dummy
@@ -77,7 +77,7 @@ run_hatari --machine falcon --cpulevel 4
 check_cookie "_CPU" "0x00000028"
 check_cookie "_VDO" "0x00030000"
 check_cookie "_MCH" "0x00030000"
-check_cookie "_SND" "0x00000017"
+check_cookie "_SND" "0x0000001f"
 echo "OK"
 
 # Mega-ST and Mega-STE are only available with newer versions of Hatari

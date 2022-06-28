@@ -4,7 +4,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2019 The EmuTOS development team
+*                 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -58,7 +58,7 @@ WORD pro_run(WORD isgraf, char *cmd, char *tail, WORD wh, WORD curr)
     ret = pro_exec(isgraf, 1, cmd, tail);
 
     if (wh != -1)
-        do_wopen(FALSE, wh, curr, G.g_xdesk, G.g_ydesk, G.g_wdesk, G.g_hdesk);
+        do_wopen(FALSE, wh, curr, &G.g_desk);
 
     return ret;
 }

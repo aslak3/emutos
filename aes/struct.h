@@ -2,7 +2,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2019 The EmuTOS development team
+*                 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -18,6 +18,9 @@
 #ifndef GEMSTRUCT_H
 #define GEMSTRUCT_H
 
+#include "aesdefs.h"
+#include "obdefs.h"
+
 typedef struct aespd   AESPD;           /* process descriptor           */
 typedef struct uda     UDA;             /* user stack data area         */
 typedef struct cdastr  CDA;             /* console data area structure  */
@@ -26,6 +29,7 @@ typedef struct evb     EVB;             /* event block                  */
 typedef struct cqueue  CQUEUE;          /* console kbd queue            */
 typedef struct spb     SPB;             /* sync parameter block         */
 typedef struct fpd     FPD;             /* fork process descriptor      */
+typedef struct smib    SMIB;            /* submenu information block    */
 
 typedef UWORD   EVSPEC;
 
@@ -33,13 +37,20 @@ typedef UWORD   EVSPEC;
 
 /*
  * EVBs are used to track events that an AES process is waiting on.  the
- * maximum number of events that a process can wait for is 6 (MU_KEYBD,
- * MU_BUTTON, MU_M1, MU_M2, MU_MESAG, MU_TIMER), when ev_multi() is used.
+ * maximum number of events per process is the number of unique bitmasks
+ * for ev_multi(): MU_KEYBD, MU_BUTTON, MU_M1, MU_M2, MU_MESAG, MU_TIMER
+ * (plus MU_M3 for menu extension support).
  *
- * therefore we create 6 EVBs per AES process and ensure that we cannot
- * run out of EVBs.
+ * therefore we create 6 (or 7) EVBs per AES process and ensure that we
+ * cannot run out of EVBs.
  */
+#if CONF_WITH_MENU_EXTENSION
+#define EVBS_PER_PD     7               /* EVBs per AES process */
+#else
 #define EVBS_PER_PD     6               /* EVBs per AES process */
+#endif
+
+#define NUM_SMIBS   128                 /* SMIBs per process (when allocated) */
 
 #define KBD_SIZE 8
 #define QUEUE_SIZE 128
@@ -132,6 +143,10 @@ struct aespd                /* process descriptor */
             WORD wh;            /* window handle of applicable window */
         }       p_msg;
 
+#if CONF_WITH_GRAF_MOUSE_EXTENSION
+        MFORM   p_mouse;        /* used by graf_mouse(SAVE,RESTORE) */
+#endif
+
         char    *p_qaddr;       /* */
         WORD    p_qindex;       /* */
         char    p_queue[QUEUE_SIZE];    /* */
@@ -161,5 +176,13 @@ struct fpd                  /* fork process descriptor */
         FCODE   f_code;
         LONG    f_data;
 } ;
+
+struct smib                 /* submenu info block */
+{
+        WORD    s_usage;        /* usage count */
+        OBJECT  *s_tree;
+        WORD    s_menu;
+        WORD    s_start;
+};
 
 #endif /* GEMSTRUCT_H */

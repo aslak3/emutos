@@ -2,7 +2,7 @@
  * portab.h - Definitions for writing portable C
  *
  * Copyright (C) 2001 Lineo, Inc
- *               2001-2019 The EmuTOS development team
+ *               2001-2020 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -149,7 +149,7 @@ typedef void PRG_ENTRY(void) /* NORETURN */;
 /*
  * Force a compilation error if condition is true, but also produce a
  * result (of value 0 and type size_t), so the expression can be used
- * e.g. in a structure initializer (or where-ever else comma expressions
+ * e.g. in a structure initializer (or wherever else comma expressions
  * aren't permitted).
  *
  * Explanations there:
@@ -177,7 +177,7 @@ typedef void PRG_ENTRY(void) /* NORETURN */;
 
 /* Lightweight cast to only remove const and volatile qualifiers from a pointer.
  * This is similar to the C++ const_cast<> operator.
- * It is usefull to call a function with const data while the parameter
+ * It is useful to call a function with const data while the parameter
  * is not properly marked as const (usually because the constness depends
  * on other parameters).
  * A better implementation may add safer type checking.

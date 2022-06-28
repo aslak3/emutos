@@ -1,7 +1,7 @@
 /*
  * parport.c - limited parallel port support
  *
- * Copyright (C) 2002-2019 The EmuTOS development team
+ * Copyright (C) 2002-2021 The EmuTOS development team
  *
  * Authors:
  *  LVL   Laurent Vogel
@@ -24,7 +24,7 @@
 
 /*
  * known differences with respect to the original TOS:
- * - printer configuration and hardcopy not done
+ * - printer hardcopy is not done
  * - no input
  */
 
@@ -90,9 +90,9 @@ static LONG prnout(WORD c)
      * according to the spec, the strobe line must be pulsed low
      * for a minimum of 500ns, so we do it for 1 microsecond
      */
-    offgibit(~0x20);
+    offgibit(~GI_STROBE);
     DELAY_1US;
-    ongibit(0x20);
+    ongibit(GI_STROBE);
 
     /*
      * at this point, we should wait for ACK to go low, but
@@ -109,7 +109,7 @@ void parport_init(void)
 {
 #if CONF_WITH_PRINTER_PORT
     /* set Strobe high */
-    ongibit(0x20);
+    ongibit(GI_STROBE);
 
     /* initialize delay */
     delay1us = loopcount_1_msec / 1000;

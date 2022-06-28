@@ -1,9 +1,9 @@
 /*
- * deskconf.h - desktop configuration header
+ * deskconf.h - EmuDesk's configuration header
  *
  * This file provides a place to centralise the desktop configuration.
  *
- * Copyright (C) 2011-2019 The EmuTOS development team
+ * Copyright (C) 2011-2020 The EmuTOS development team
  *
  * Authors:
  *  RFB    Roger Burrows

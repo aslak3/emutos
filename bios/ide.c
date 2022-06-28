@@ -1,7 +1,7 @@
 /*
  * ide.c - Falcon IDE functions
  *
- * Copyright (C) 2011-2019 The EmuTOS development team
+ * Copyright (C) 2011-2021 The EmuTOS development team
  *
  * Authors:
  *  VRI   Vincent Rivière
@@ -25,7 +25,6 @@
 #include "delay.h"
 #include "disk.h"
 #include "ide.h"
-#include "mfp.h"
 #include "gemerror.h"
 #include "string.h"
 #include "tosvars.h"
@@ -35,9 +34,7 @@
 #include "coldfire.h"
 #include "processor.h"
 #include "biosmem.h"
-#ifdef MACHINE_AMIGA
 #include "amiga.h"
-#endif
 
 #if CONF_WITH_IDE
 
@@ -297,9 +294,19 @@ struct IFINFO {
 
 #define DELAY_5US       delay_loop(delay5us)
 
+/*
+ * timeouts
+ *
+ * Note: the 'official' timeout for a reset is 31 seconds.  However, this
+ * causes excessively long delays during initialisation on (for example)
+ * a Falcon if a device is not present.  The value chosen below is
+ * conservative for modern IDE devices.  If this is insufficient in
+ * particular cases, the default cold boot delay can be patched in the
+ * ROM image.  See doc/version.txt for details.
+ */
 #define SHORT_TIMEOUT   (CLOCKS_PER_SEC/10) /* 100ms */
-#define XFER_TIMEOUT    (CLOCKS_PER_SEC)    /* 1000ms for data xfer */
-#define LONG_TIMEOUT    (31*CLOCKS_PER_SEC) /* 31 seconds for reset (!)*/
+#define XFER_TIMEOUT    (3*CLOCKS_PER_SEC)  /* 3 seconds for data xfer */
+#define LONG_TIMEOUT    (3*CLOCKS_PER_SEC)  /* 3 seconds for reset */
 
 static int has_ide;
 static struct IFINFO ifinfo[NUM_IDE_INTERFACES];
@@ -375,6 +382,25 @@ static int check_interface_magic(volatile struct IDE *interface, WORD ifnum)
     return 0;
 }
 
+/*
+ * check if an interface is a ghost by checking if it has
+ * overwritten the magic number of a previous interface
+*/
+static int ide_interface_is_ghost(WORD ifnum)
+{
+    int i, bitmask;
+
+    for (i = 0, bitmask = 1; i < ifnum; i++, bitmask <<= 1) {
+        if (has_ide&bitmask) {
+            /* check a previous interface against the magic of the current interface */
+            volatile struct IDE *interface = ifinfo[i].base_address;
+            if (check_interface_magic(interface, ifnum))
+                return 1;
+        }
+    }
+    return 0;
+}
+
 /* Enum to capture interface status during ide_interface_exists(). */
 enum ide_if_status
 {
@@ -392,11 +418,11 @@ enum ide_if_status
  * as soon as the BSY bit on an interface is low:
  *    write a magic number (dependent on the interface number) to
  *    the sector number/count registers and check...
- *    a. if the magic number is read back correctly and the
- *       interface 0 magic number is unchanged
+ *    a. if the magic number is read back correctly and it hasn't
+ *       written its magic number on a previous interface
  *       => device found
- *    b. if the magic number is read back correctly but the
- *       interface 0 magic number is changed
+ *    b. if the magic number is read back correctly but it has
+ *       written its own magic number on a previous interface
  *       => ghost interface
  *    c. if the magic number is not read back correctly
  *       => no device present
@@ -405,25 +431,23 @@ enum ide_if_status
  *    b. no device is found on both regular and twisted interfaces
  *    c. a timeout occurs, i.e., both interfaces stayed BSY
  */
-static int ide_interface_exists(WORD ifnum)
+static int ide_interface_exists(WORD ifnum, LONG timeout)
 {
     volatile struct IDE *regular_iface = ifinfo[ifnum].base_address;
     volatile struct IDE *twisted_iface = (volatile struct IDE *)(((ULONG)ifinfo[ifnum].base_address)-1);
-    volatile struct IDE *first_iface   = ifinfo[0].base_address;
-    enum ide_if_status  regular_iface_status = IDE_IF_NOTCHECKED;
-    enum ide_if_status  twisted_iface_status = IDE_IF_NOTCHECKED;
-
-    /* We wait a max time for BSY to drop since this is called during
-     * initialisation, which can be invoked by power-on/reset.
-     */
-    LONG next = hz_200 + LONG_TIMEOUT;
+    enum ide_if_status regular_iface_status = IDE_IF_NOTCHECKED;
+    enum ide_if_status twisted_iface_status = IDE_IF_NOTPRESENT;
+    BOOL allow_twisted = check_read_byte((long)&twisted_iface->control);
 
     IDE_WRITE_CONTROL(regular_iface,IDE_CONTROL_nIEN);/* no interrupts please */
-    IDE_WRITE_CONTROL(twisted_iface,IDE_CONTROL_nIEN);/* no interrupts please */
+    if (allow_twisted) {
+        /* Registers for potential "twisted" interface are accessible. */
+        IDE_WRITE_CONTROL(twisted_iface,IDE_CONTROL_nIEN);/* no interrupts please */
+        twisted_iface_status = IDE_IF_NOTCHECKED;
+    }
 
     DELAY_400NS;
-    while ((hz_200 < next) &&
-        ((regular_iface_status == IDE_IF_NOTCHECKED) || (twisted_iface_status == IDE_IF_NOTCHECKED))) {
+    do {
         /* Check BSY on regular interface. */
         if ((IDE_READ_ALT_STATUS(regular_iface) & IDE_STATUS_BSY) == 0) {
             /* Check it exists by setting and reading back magic number. */
@@ -433,7 +457,7 @@ static int ide_interface_exists(WORD ifnum)
                 ifinfo[ifnum].twisted_cable = FALSE;
                 regular_iface_status = IDE_IF_PRESENT;
                 /* Check that it is not a ghost interface. */
-                if ((ifnum > 0) && (!check_interface_magic(first_iface, 0))) {
+                if ((ifnum > 0) && ide_interface_is_ghost(ifnum)) {
                     regular_iface_status = IDE_IF_ISGHOST;
                 }
                 break;
@@ -443,7 +467,7 @@ static int ide_interface_exists(WORD ifnum)
         }
 
         /* Check BSY on twisted interface. */
-        if ((IDE_READ_ALT_STATUS(twisted_iface) & IDE_STATUS_BSY) == 0) {
+        if (allow_twisted && ((IDE_READ_ALT_STATUS(twisted_iface) & IDE_STATUS_BSY) == 0)) {
             /* Check it exists by setting and reading back magic number. */
             KDEBUG(("checking ide interface %d with twisted cable\n", ifnum));
             set_interface_magic(twisted_iface, ifnum);
@@ -452,7 +476,7 @@ static int ide_interface_exists(WORD ifnum)
                 ifinfo[ifnum].twisted_cable = TRUE;
                 twisted_iface_status = IDE_IF_PRESENT;
                 /* Check that it is not a ghost interface. */
-                if ((ifnum > 0) && (!check_interface_magic(first_iface, 0))) {
+                if ((ifnum > 0) && ide_interface_is_ghost(ifnum)) {
                     twisted_iface_status = IDE_IF_ISGHOST;
                 }
                 break;
@@ -460,7 +484,8 @@ static int ide_interface_exists(WORD ifnum)
                 twisted_iface_status = IDE_IF_NOTPRESENT;
             }
         }
-    }
+    } while ((hz_200 < timeout) &&
+             ((regular_iface_status == IDE_IF_NOTCHECKED) || (twisted_iface_status == IDE_IF_NOTCHECKED)));
 
     int rc = (regular_iface_status == IDE_IF_PRESENT) || (twisted_iface_status == IDE_IF_PRESENT);
     KDEBUG(("ide interface %d %s %s\n",ifnum,rc?"exists":"not present",ifinfo[ifnum].twisted_cable?"(twisted cable)":""));
@@ -533,10 +558,15 @@ void ide_init(void)
         return;
 
 #if (CONF_ATARI_HARDWARE && !defined(MACHINE_FIREBEE)) || defined MACHINE_MAXI030
-    /* reject 'ghost' interfaces & detect twisted cables */
+    /* Reject 'ghost' interfaces & detect twisted cables.
+     * We wait a max time for BSY to drop on all IDE interface
+     * since this is called during initialisation, which can be
+     * invoked by power-on/reset.
+     */
+    LONG timeout = hz_200 + LONG_TIMEOUT;
     for (i = 0, bitmask = 1; i < NUM_IDE_INTERFACES; i++, bitmask <<= 1)
         if (has_ide&bitmask)
-            if (!ide_interface_exists(i))
+            if (!ide_interface_exists(i, timeout))
                 has_ide &= ~bitmask;
 
     KDEBUG(("ide_init(): has_ide = 0x%02x\n",has_ide));

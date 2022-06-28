@@ -1,32 +1,36 @@
-Installing:
-
+Installing the toolchain
+========================
 You will need a (cross-)GCC toolchain for TOS/MiNT.
 Currently, the only supported one is Vincent Rivière's m68k-atari-mint tools:
-http://vincent.riviere.free.fr/soft/m68k-atari-mint/
-Other toolchains, such as the old one from SpareMiNT, may also work, too.
-You will also need GNU make (tested with make 4.2.1).
+  http://vincent.riviere.free.fr/soft/m68k-atari-mint/
+which is based on GCC 4.8.4.
+
+Other toolchains may also work.  However, you will not be able to use one
+based on GCC 2, for several reasons.  The most important of these is that
+the generated binaries are just too large.  This is also the case for many
+binaries built with versions of GCC *later* than 4.8.4; in fact, as of the
+time of writing, 4.8.4 seems to produce the most compact binaries.
+
+You will also need GNU make (tested with make 3.81 & 4.2.1).
+
 
 Building EmuTOS
 ===============
-
 To build, first do:
-
     make help
-
 This will display the list of all possible targets.
 
-To build the standard etos512k.img, do
-
-    make 512
+To build a multilanguage ROM, e.g. etos1024k.img, do
+    make 1024
 
 To build EmuTOS for a different default country (changes the language and the
 keyboard), do
-
-    make 512 COUNTRY=en
+    make 1024 COUNTRY=en
 or
-    make 512 COUNTRY=fr
+    make 1024 COUNTRY=fr
 or
-    make 512 COUNTRY=de
+    make 1024 COUNTRY=de
+etc
 
 NOTE: by specifying COUNTRY=xx, all countries are included in the binary,
 but a flag in the TOS header will indicate country 'xx'. If, however, the
@@ -35,22 +39,49 @@ ARAnyM), the country number in the NVRAM will override that setting of the
 country in the TOS header.
 
 To build EmuTOS for a single country only, you must use UNIQUE instead of
-COUNTRY. This is mainly useful for the 192 and 256 KB targets. Example:
-
+COUNTRY. This is used for the 192K/256K/512K targets. Example:
     make 256 UNIQUE=fr
 
 Many options are set via the configuration file include/config.h.  They can
 be overridden most easily via #defines in a user-created file localconf.h.
+See "Customising EmuTOS" below for further details.
+
+You must do a "make clean" before switching to a different target, e.g.
+switching from 512k to 256k ROMs.  The only build change allowed without
+a "make clean" is to build (with the same target) for a different language.
+
+
+Customising EmuTOS
+==================
+The various binary targets are all built from the same EmuTOS sources by
+the use of different values for the 'configuration defines', which are
+found in include/config.h.  Apart from the source code itself, the usage
+of the configuration defines is best determined from the comments in that
+file.
+
+It is possible to build custom versions of EmuTOS by changing the values
+of the configuration defines.  To avoid having to change that file itself,
+you may create a localconf.h file in the root of the repository, and
+insert the appropriate #defines in that file.  Any #define in localconf.h
+will override the corresponding #define in config.h.
+
+Although customising EmuTOS in this way is relatively simple to do in a
+mechanical sense, you should be careful when doing this as it is quite
+possible to create a binary which will not work on your machine.  We
+recommend that the target you modify should be one that will run on your
+machine: for example, if you are customising for an STe, start with the
+256k (or larger) target.  Otherwise the automatic hardware detection and
+configuration code required for your machine may not be included.
+
 
 A complete list of targets
 ==========================
-
 EmuTOS binaries
 ---------------
-
-192         etos192k.img, EmuTOS ROM padded to size 192 KB (starting at 0x00fc0000)
-256         etos256k.img, EmuTOS ROM padded to size 256 KB (starting at 0x00e00000)
+192         etos192us.img, EmuTOS ROM padded to size 192 KB (starting at 0x00fc0000)
+256         etos256us.img, EmuTOS ROM padded to size 256 KB (starting at 0x00e00000)
 512         etos512k.img, EmuTOS ROM padded to size 512 KB (starting at 0x00e00000)
+1024        etos1024k.img, EmuTOS ROM padded to size 1024 KB (starting at 0x00e00000)
 aranym      emutos-aranym.img, suitable for ARAnyM
 firebee     emutosfb.s19, to be flashed on the FireBee
 firebee-prg emutos.prg, a RAM tos for the FireBee
@@ -60,16 +91,17 @@ amigaflop   emutos.adf, EmuTOS RAM as Amiga boot floppy
 amigaflopvampire emutos-vampire.adf, EmuTOS RAM as Amiga boot floppy optimized for Vampire V2
 amigavampire     emutos-vampire.rom, EmuTOS ROM for Amiga optimized for Vampire V2
 v4sa        emutos-vampire-v4sa.rom, EmuTOS ROM for Amiga Vampire V4 Standalone
-m548x-dbug  emutos-m548x-dbug.s19, EmuTOS-RAM for dBUG on ColdFire Evaluation Boards
-m548x-bas   emutos-m548x-bas.s19, EmuTOS-RAM for BaS_gcc on ColdFire Evaluation Boards
+lisaflop    emutos.dc42, EmuTOS RAM as Apple Lisa boot floppy
+m548x-dbug  emutos-m548x-dbug.s19, EmuTOS for dBUG on ColdFire Evaluation Boards
+m548x-bas   emutos-m548x-bas.s19, EmuTOS for BaS_gcc on ColdFire Evaluation Boards
 m548x-prg   emutos.prg, a RAM tos for ColdFire Evaluation Boards with BaS_gcc
 prg         emutos.prg, a RAM tos
-flop        emutos.st, a bootable floppy with RAM tos
+flop        emutosus.st, a bootable floppy with RAM tos
+pak3        etospak3us.img, suitable for PAK/3 systems
 cart        etoscart.img, EmuTOS as a diagnostic cartridge
 
 Binary targets modifiers
 ------------------------
-
 nothing     same as COUNTRY=us
 COUNTRY=xx  all countries in the binary, country xx being the default
 UNIQUE=xx   a smaller binary with only support for country xx
@@ -79,78 +111,30 @@ DEF='-DSOMEDEFINE=value'
 
 Utility targets
 ---------------
-
 bugready    for translations: sets up files in preparation for 'bug update'
+version     display the EmuTOS version
 
 Debug targets
 -------------
-
 dsm         dsm.txt, an edited disassembly of emutos.img
-*.dsm       disassembly of any .c or almost any .img file
 
 Git-related targets
 -------------------
-
 clean       cleans all generated files
 charset     check the charset of all the source files
 crlf        convert all end-of-lines to LF
 expand      expand tabs to spaces
 gitready    ensure the files have a proper format for Git (same as 'make crlf expand')
-checkindent try 'indent' without altering the files
-indent      indent all files - never done yet :-(
+help        displays a complete list of targets
 
 Release-related targets
 -------------------
-
 all192      all 192 KB images
 all256      all 256 KB images
+allpak3     all PAK/3 images
 allprg      all emutos*.prg
 allflop     all emutos*.st
 release     build the release archives into release-archives
-
-
-STonX-specific notes
-=======================
-
-EmuTOS now no longer needs changes to STonX. It will run on a normal STonX.
-
-But, if you want to see debugging output in STonX, you need to do two
-things:
-
-1. implement a write_native function in gemdos.c of STonX:
-
-    /* Print string from emulated side */
-    void write_native(char * addr)
-    {
-        char buf[1024];
-        int n;
-
-        for(n = 0 ; n < 1023 ; n++) {  /* Fill string char by char */
-            if ( (buf[n]=LM_UB(MEM(addr++))) == 0) break;
-        }
-        buf[1023] = 0;
-        fprintf(stderr,"%s", buf);
-    }
-
-    void call_native(UL as, UL func)
-    {
-    #if 0
-        fprintf(stderr,"Calling native %d\n",func);
-    #endif
-        switch (func)
-        {
-        case 0: /* Get the address, where string begins*/
-            write_native((char *)LM_UL(MEM(as)));
-            break;
-        case 1:
-    ...
-
-(STonX release 0.8.0 and later already has this function)
-
-2. Switch on STonX debugging output by setting STONX_NATIVE_PRINT to 1
-   before building EmuTOS. Do this by creating a file called localconf.h
-   (in the same folder as the EmuTOS Makefile) with one line:
-   #define STONX_NATIVE_PRINT 1
 
 
 Good luck!

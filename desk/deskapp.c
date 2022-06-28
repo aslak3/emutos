@@ -4,7 +4,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*       Copyright (C) 2002-2019 The EmuTOS development team
+*       Copyright (C) 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -96,7 +96,7 @@
 #define INF_E2_IDTDATE  0x40    /* 1 => get date format from _IDT (ignore INF_E2_DAYMONTH bit) */
 #define INF_E2_IDTTIME  0x20    /* 1 => get time format from _IDT (ignore INF_E2_24HCLOCK bit) */
 #define INF_E2_ALLOWOVW 0x10    /* 1 => allow overwrites (yes, it's backwards) */
-#define INF_E2_MNUCLICK 0x08    /* 1 => click to drop down menus */
+                                /* 0x08 was INF_E2_MNUCLICK: 1 => click to drop down menus */
 #define INF_E2_DAYMONTH 0x04    /* 1 => day before month */
 #define INF_E2_24HCLOCK 0x02    /* 1 => 24 hour clock */
                                 /* following are defaults if no .INF */
@@ -126,7 +126,7 @@
 #define INF_AT_APPDIR   0x01    /* 1 => set current dir to app's dir (else to top window dir) */
 #define INF_AT_ISFULL   0x02    /* 1 => pass full path in args (else filename only) */
 
-#define INF_REV_LEVEL   0x01    /* revision level when creating EMUDESK.INF */
+#define INF_REV_LEVEL   0x02    /* revision level when creating EMUDESK.INF */
 
 /*
  * the following defines the number of bytes reserved for control panel
@@ -169,7 +169,7 @@ static char     *atextptr;      /* current pointer within ANODE text buffer */
  *     not otherwise necessary.
  */
 static const char desk_inf_data1[] =
-    "#R 01\r\n"                         /* INF_REV_LEVEL */
+    "#R 02\r\n"                         /* INF_REV_LEVEL */
     "#E 1A E0 00 00 60\r\n"             /* INF_E1_DEFAULT, INF_E2_DEFAULT, INF_E5_DEFAULT */
 #if CONF_WITH_BACKGROUNDS
     "#Q 41 40 43 40 43 40\r\n"          /* INF_Q1_DEFAULT -> INF_Q6_DEFAULT */
@@ -404,11 +404,31 @@ static char *app_parse(char *pcurr, ANODE *pa)
 #endif
 
 #if CONF_WITH_DESKTOP_SHORTCUTS
-    /* mark desktop shortcuts as executable based on file extension */
-    if ((pa->a_flags == AF_ISDESK) && (pa->a_type == AT_ISFILE) &&
-        is_executable(pa->a_pdata))
+    if (pa->a_flags & AF_ISDESK)
     {
-        pa->a_flags |= AF_ISEXEC;
+        char *temp;
+        /*
+         * fix up old format of desktop icon entries if necessary
+         */
+        switch(pa->a_type)
+        {
+        case AT_ISFILE:
+        case AT_ISFOLD:
+            if (inf_rev_level < 2)
+            {
+                temp = pa->a_pappl;
+                pa->a_pappl = pa->a_pdata;
+                pa->a_pdata = temp;
+            }
+        }
+
+        /*
+         * mark desktop shortcuts as executable based on file extension
+         */
+        if ((pa->a_type == AT_ISFILE) && is_executable(pa->a_pappl))
+        {
+            pa->a_flags |= AF_ISEXEC;
+        }
     }
 #endif
 
@@ -418,14 +438,11 @@ static char *app_parse(char *pcurr, ANODE *pa)
 
 void app_tran(WORD bi_num)
 {
-    BITBLK *pbi;
     BITBLK lb;
 
-    rsrc_gaddr_rom(R_BITBLK, bi_num, (void **)&pbi);
+    lb = desk_rs_bitblk[bi_num];
 
-    lb = *pbi;
-
-    gsx_trans(lb.bi_pdata, lb.bi_wb, lb.bi_pdata, lb.bi_wb, lb.bi_hl);
+    gsx_trans(lb.bi_pdata, lb.bi_wb, lb.bi_hl);
 }
 
 
@@ -507,21 +524,18 @@ static WORD setup_iconblks(const ICONBLK *ibstart, WORD count)
      * Finally we do the transforms
      */
     for (i = 0, p = maskstart; i < count; i++, p += num_bytes)
-        gsx_trans(p, iwb, p, iwb, ih);
+        gsx_trans(p, iwb, ih);
     for (i = 0, p = datastart; i < count; i++, p += num_bytes)
-        gsx_trans(p, iwb, p, iwb, ih);
+        gsx_trans(p, iwb, ih);
 
     return 0;
 }
 
 /*
- * try to load icons from user-supplied resource
+ * try to load user-supplied resource
  */
-static WORD load_user_icons(void)
+static WORD load_icon_file(void)
 {
-    RSHDR *hdr;
-    ICONBLK *ibptr, *ib;
-    WORD i, n, rc, w, h;
     char icon_rsc_name[sizeof(ICON_RSC_NAME)];
 
     /* Do not load user icons if Control was held on startup */
@@ -529,8 +543,6 @@ static WORD load_user_icons(void)
         return -1;
 
     /*
-     * determine the number of icons in the user's icon resource
-     *
      * note: since the icons must be in the root of the boot drive, we
      * make sure that they are there before calling rsrc_load(), which
      * could otherwise search in multiple directories, taking longer
@@ -538,20 +550,28 @@ static WORD load_user_icons(void)
      */
     strcpy(icon_rsc_name, ICON_RSC_NAME);
     icon_rsc_name[0] += G.g_stdrv;  /* Adjust drive letter  */
-    rc = -1;
     if (dos_sfirst(icon_rsc_name, FA_RO|FA_SYSTEM) == 0)
         if (rsrc_load(icon_rsc_name))
-            rc = 0;
-    if (rc < 0)
-    {
-        KDEBUG(("can't load user desktop icons from %s\n",icon_rsc_name));
-        return -1;
-    }
+            return 0;
+
+    KDEBUG(("can't load user desktop icon file %s\n",icon_rsc_name));
+    return -1;
+}
+
+
+/*
+ * try to set up mono icons
+ */
+static WORD setup_mono_icons(void)
+{
+    RSHDR *hdr;
+    ICONBLK *ibptr, *ib;
+    WORD i, n, rc, w, h;
 
     hdr = (RSHDR *)(AP_1RESV);
     if (hdr->rsh_nib < NUM_GEM_IBLKS)   /* must have at least the minimum set */
     {
-        KDEBUG(("too few user desktop icons (%d)\n",hdr->rsh_nib));
+        KDEBUG(("too few user desktop mono icons (%d)\n",hdr->rsh_nib));
         rsrc_free();
         return -1;
     }
@@ -568,7 +588,7 @@ static WORD load_user_icons(void)
     {
         if ((ib->ib_wicon != w) || (ib->ib_hicon != h))
         {
-            KDEBUG(("user desktop icon %d has wrong size (%dx%d)\n",
+            KDEBUG(("user desktop mono icon %d has wrong size (%dx%d)\n",
                     i,ib->ib_wicon,ib->ib_hicon));
             rsrc_free();
             return -1;
@@ -644,10 +664,13 @@ static WORD app_rdicon(void)
     /*
      * try to load user icons; if that fails, use builtin
      */
-    if (load_user_icons() < 0)
-        return setup_iconblks(icon_rs_iconblk, BUILTIN_IBLKS);
+    if (load_icon_file() == 0)
+    {
+        if (setup_mono_icons() == 0)
+            return 0;
+    }
 
-    return 0;
+    return setup_iconblks(icon_rs_iconblk, BUILTIN_IBLKS);
 }
 
 
@@ -787,11 +810,11 @@ void app_start(void)
     G.g_wicon = (MAX_ICONTEXT_WIDTH * gl_wschar) + (2 * G.g_iblist[0].ib_xtext);
     G.g_hicon = G.g_iblist[0].ib_hicon + gl_hschar + 2;
 
-    xcnt = G.g_wdesk / (G.g_wicon+MIN_WINT);/* icon count */
-    G.g_icw = G.g_wdesk / xcnt;             /* width */
+    xcnt = G.g_desk.g_w / (G.g_wicon+MIN_WINT); /* icon count */
+    G.g_icw = G.g_desk.g_w / xcnt;              /* width */
 
-    ycnt = G.g_hdesk / (G.g_hicon+MIN_HINT);/* icon count */
-    G.g_ich = G.g_hdesk / ycnt;             /* height */
+    ycnt = G.g_desk.g_h / (G.g_hicon+MIN_HINT); /* icon count */
+    G.g_ich = G.g_desk.g_h / ycnt;              /* height */
 
 #if CONF_WITH_BACKGROUNDS
     /*
@@ -900,8 +923,6 @@ void app_start(void)
             pcurr = scan_2(pcurr, &envr);
             cnxsave->cs_blitter = ( (envr & INF_E2_BLITTER) != 0);
             cnxsave->cs_confovwr = ( (envr & INF_E2_ALLOWOVW) == 0);
-            cnxsave->cs_mnuclick = ( (envr & INF_E2_MNUCLICK) != 0);
-            menu_click(cnxsave->cs_mnuclick, 1);    /* tell system */
             if (envr & INF_E2_IDTDATE)
                 cnxsave->cs_datefmt = DATEFORM_IDT;
             else
@@ -960,7 +981,7 @@ void app_start(void)
         if (pa->a_flags & AF_ISDESK)
         {
             x = pa->a_xspot * G.g_icw;
-            y = pa->a_yspot * G.g_ich + G.g_ydesk;
+            y = pa->a_yspot * G.g_ich + G.g_desk.g_y;
             snap_icon(x, y, &pa->a_xspot, &pa->a_yspot, 0, 0);
         }
     }
@@ -1119,7 +1140,6 @@ void app_save(WORD todisk)
     env1 |= cnxsave->cs_dblclick & INF_E1_DCMASK;
     env2 = (cnxsave->cs_blitter) ? INF_E2_BLITTER : 0x00;
     env2 |= (cnxsave->cs_confovwr) ? 0x00 : INF_E2_ALLOWOVW;
-    env2 |= (cnxsave->cs_mnuclick) ? INF_E2_MNUCLICK : 0x00;
     switch(cnxsave->cs_datefmt)
     {
     case DATEFORM_IDT:
@@ -1162,7 +1182,7 @@ void app_save(WORD todisk)
 #endif
 
 #if CONF_WITH_DESKTOP_CONFIG
-    /* save menu item sortcuts */
+    /* save menu item shortcuts */
     *pcurr++ = '#';
     *pcurr++ = 'K';
     for (i = 0; i < NUM_SHORTCUTS; i++)
@@ -1237,7 +1257,7 @@ void app_save(WORD todisk)
         pcurr += sprintf(pcurr,"#%c",type);
         if (pa->a_flags & AF_ISDESK)
             pcurr += sprintf(pcurr," %02X %02X",(pa->a_xspot/G.g_icw)&0x00ff,
-                            (max(0,(pa->a_yspot-G.g_ydesk))/G.g_ich)&0x00ff);
+                            (max(0,(pa->a_yspot-G.g_desk.g_y))/G.g_ich)&0x00ff);
         pcurr += sprintf(pcurr," %02X %02X",pa->a_aicon&0x00ff,pa->a_dicon&0x00ff);
         if (pa->a_flags & AF_ISDESK)
             pcurr += sprintf(pcurr," %c",pa->a_letter?pa->a_letter:' ');
@@ -1369,14 +1389,18 @@ void app_blddesk(void)
             pob->ob_spec = (LONG)pic;
             memcpy(pic, &G.g_iblist[icon], sizeof(ICONBLK));
             pic->ib_xicon = ((G.g_wicon - pic->ib_wicon) / 2);
-            pic->ib_ptext = pa->a_pappl;
+            /* the label position varies */
+            if ((pa->a_type == AT_ISFILE) || (pa->a_type == AT_ISFOLD))
+                pic->ib_ptext = pa->a_pdata;
+            else
+                pic->ib_ptext = pa->a_pappl;
             pic->ib_char |= pa->a_letter;
         }
     }
 
     app_revit();    /* back to normal ... */
 
-    do_wredraw(DESKWH, (GRECT *)&G.g_xdesk);
+    do_wredraw(DESKWH, &G.g_desk);
 }
 
 
@@ -1386,6 +1410,9 @@ void app_blddesk(void)
 ANODE *app_afind_by_id(WORD obid)
 {
     ANODE *pa;
+
+    if (obid < WOBS_START)      /* validate obid */
+        return NULL;
 
     for (pa = G.g_ahead; pa; pa = pa->a_next)
     {
@@ -1407,7 +1434,7 @@ ANODE *app_afind_by_id(WORD obid)
  *      TRUE if name matches application name
  *      FALSE if name matches data name
  */
-ANODE *app_afind_by_name(WORD atype, WORD ignore, char *pspec, char *pname, WORD *pisapp)
+ANODE *app_afind_by_name(WORD atype, WORD ignore, char *pspec, char *pname, BOOL *pisapp)
 {
     ANODE *pa;
     WORD match;

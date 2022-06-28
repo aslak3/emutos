@@ -1,7 +1,7 @@
 /*
  * nova.h - Nova graphic card routines
  *
- * Copyright (C) 2018 The EmuTOS development team
+ * Copyright (C) 2018-2021 The EmuTOS development team
  *
  * Authors:
  * Christian Zietz
@@ -14,9 +14,9 @@
 #define NOVA_H
 
 #if CONF_WITH_NOVA
-extern int has_nova;
 void detect_nova(void);
 int init_nova(void);
+UBYTE* get_novamembase(void);
 #endif
 
 #endif

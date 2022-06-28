@@ -1,7 +1,7 @@
 /*
  * vectors.S - exception vectors
  *
- * Copyright (C) 2001-2019 The EmuTOS development team
+ * Copyright (C) 2001-2021 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -71,12 +71,11 @@
         .extern _proc_usp
         .extern _proc_stk
 
-        .extern _bell
         .extern _GSX_ENTRY
         .extern _vblsem
         .extern _colorptr
 #if CONF_WITH_VIDEL
-        .extern _falcon_shadow_palette
+        .extern _falcon_shadow_count
 #endif
         .extern _screenpt
         .extern _has_videl
@@ -370,11 +369,8 @@ _int_vbl:
         jeq     docopy                      // wasn't set, so update STe regs
         // load Falcon color palette
         lea     0xffff9800.w,a1             // Falcon palette registers
-        moveq   #15,d1                      // assume 16 only
-        tst.l   d0                          // source address specified?
-        jne     docopy                      // yes, go update 16
-        move.l  #_falcon_shadow_palette,d0  // else set source address
-        move.l  #255,d1                     //  & prepare to update 256
+        move.l  _falcon_shadow_count,d1     // get count
+        subq.l  #1,d1                       // for dbra
 docopy:
 #endif
         move.l  d0,a0                       // a0 -> source
@@ -392,6 +388,17 @@ vbl_no_palette:
         move.l  _screenpt.w,d0
         jeq     vbl_no_screenpt
         move.l  d0,_v_bas_ad.w
+        // middle & high bytes of address are valid for all shifters
+#ifdef __mcoldfire__
+        lsr.l   #8,d0
+        move.b  d0,0xffff8203.w
+        lsr.l   #8,d0
+#else
+        lsr.w   #8,d0
+        move.b  d0,0xffff8203.w
+        swap    d0
+#endif
+        move.b  d0,0xffff8201.w
 #if CONF_WITH_VIDEL
         tst.w   _has_videl
         jne     set_video_low
@@ -407,19 +414,11 @@ vbl_no_palette:
 #if CONF_WITH_VIDEL || CONF_WITH_TT_SHIFTER || CONF_WITH_STE_SHIFTER
         jra     st_shifter
 set_video_low:
+        // this must be set *after* setting mid/hi bytes
+        move.l  _screenpt.w,d0              // recover low address byte
         move.b  d0,0xffff820d.w
 st_shifter:
 #endif
-#ifdef __mcoldfire__
-        lsr.l   #8,d0
-        move.b  d0,0xffff8203.w
-        lsr.l   #8,d0
-#else
-        lsr.w   #8,d0
-        move.b  d0,0xffff8203.w
-        swap    d0
-#endif
-        move.b  d0,0xffff8201.w
 vbl_no_screenpt:
 #endif /* CONF_WITH_ATARI_VIDEO */
 
@@ -573,6 +572,227 @@ timerc_end:
 #else
 	rte
 #endif
+
+#if CONF_WITH_MFP_RS232
+
+// ==== MFP USART interrupt handlers ============================================
+
+        .globl _mfp_rs232_rx_interrupt
+        .globl _mfp_rs232_tx_interrupt
+
+_mfp_rs232_rx_interrupt:
+#ifdef __mcoldfire__
+        lea     -16(sp),sp
+        movem.l d0-d1/a0-a1,(sp)
+#else
+        movem.l d0-d1/a0-a1,-(sp)
+#endif
+
+        jbsr    _mfp_rs232_rx_interrupt_handler
+#ifdef __mcoldfire__
+        movem.l (sp),d0-d1/a0-a1
+        lea     16(sp),sp
+#else
+        movem.l (sp)+,d0-d1/a0-a1
+#endif
+        rte
+
+_mfp_rs232_tx_interrupt:
+#ifdef __mcoldfire__
+        lea     -16(sp),sp
+        movem.l d0-d1/a0-a1,(sp)
+#else
+        movem.l d0-d1/a0-a1,-(sp)
+#endif
+
+        jbsr    _mfp_rs232_tx_interrupt_handler
+
+#ifdef __mcoldfire__
+        movem.l (sp),d0-d1/a0-a1
+        lea     16(sp),sp
+#else
+        movem.l (sp)+,d0-d1/a0-a1
+#endif
+        rte
+
+#endif
+
+#if CONF_WITH_TT_MFP
+
+// ==== TT MFP USART interrupt handlers ============================================
+
+        .globl _mfp_tt_rx_interrupt
+        .globl _mfp_tt_tx_interrupt
+
+_mfp_tt_rx_interrupt:
+#ifdef __mcoldfire__
+        lea     -16(sp),sp
+        movem.l d0-d1/a0-a1,(sp)
+#else
+        movem.l d0-d1/a0-a1,-(sp)
+#endif
+
+        jbsr    _mfp_tt_rx_interrupt_handler
+#ifdef __mcoldfire__
+        movem.l (sp),d0-d1/a0-a1
+        lea     16(sp),sp
+#else
+        movem.l (sp)+,d0-d1/a0-a1
+#endif
+        rte
+
+_mfp_tt_tx_interrupt:
+#ifdef __mcoldfire__
+        lea     -16(sp),sp
+        movem.l d0-d1/a0-a1,(sp)
+#else
+        movem.l d0-d1/a0-a1,-(sp)
+#endif
+
+        jbsr    _mfp_tt_tx_interrupt_handler
+
+#ifdef __mcoldfire__
+        movem.l (sp),d0-d1/a0-a1
+        lea     16(sp),sp
+#else
+        movem.l (sp)+,d0-d1/a0-a1
+#endif
+        rte
+
+#endif
+
+#if CONF_WITH_SCC
+
+// ==== SCC interrupt handlers ============================================
+
+        .globl _scca_rx_interrupt
+        .globl _scca_tx_interrupt
+        .globl _scca_es_interrupt
+        .globl _sccb_rx_interrupt
+        .globl _sccb_tx_interrupt
+        .globl _sccb_es_interrupt
+
+_scca_rx_interrupt:
+#ifdef __mcoldfire__
+        lea     -16(sp),sp
+        movem.l d0-d1/a0-a1,(sp)
+#else
+        movem.l d0-d1/a0-a1,-(sp)
+#endif
+
+        move.w  #0,-(sp)                // indicate port A
+        jbsr    _scc_rx_interrupt_handler
+        lea     2(sp),sp
+
+#ifdef __mcoldfire__
+        movem.l (sp),d0-d1/a0-a1
+        lea     16(sp),sp
+#else
+        movem.l (sp)+,d0-d1/a0-a1
+#endif
+        rte
+
+_scca_tx_interrupt:
+#ifdef __mcoldfire__
+        lea     -16(sp),sp
+        movem.l d0-d1/a0-a1,(sp)
+#else
+        movem.l d0-d1/a0-a1,-(sp)
+#endif
+
+        move.w  #0,-(sp)                // indicate port A
+        jbsr    _scc_tx_interrupt_handler
+        lea     2(sp),sp
+
+#ifdef __mcoldfire__
+        movem.l (sp),d0-d1/a0-a1
+        lea     16(sp),sp
+#else
+        movem.l (sp)+,d0-d1/a0-a1
+#endif
+        rte
+
+_scca_es_interrupt:
+#ifdef __mcoldfire__
+        lea     -16(sp),sp
+        movem.l d0-d1/a0-a1,(sp)
+#else
+        movem.l d0-d1/a0-a1,-(sp)
+#endif
+
+        move.w  #0,-(sp)                // indicate port A
+        jbsr    _scc_es_interrupt_handler
+        lea     2(sp),sp
+
+#ifdef __mcoldfire__
+        movem.l (sp),d0-d1/a0-a1
+        lea     16(sp),sp
+#else
+        movem.l (sp)+,d0-d1/a0-a1
+#endif
+        rte
+
+_sccb_rx_interrupt:
+#ifdef __mcoldfire__
+        lea     -16(sp),sp
+        movem.l d0-d1/a0-a1,(sp)
+#else
+        movem.l d0-d1/a0-a1,-(sp)
+#endif
+
+        move.w  #1,-(sp)                // indicate port B
+        jbsr    _scc_rx_interrupt_handler
+        lea     2(sp),sp
+
+#ifdef __mcoldfire__
+        movem.l (sp),d0-d1/a0-a1
+        lea     16(sp),sp
+#else
+        movem.l (sp)+,d0-d1/a0-a1
+#endif
+        rte
+
+_sccb_tx_interrupt:
+#ifdef __mcoldfire__
+        lea     -16(sp),sp
+        movem.l d0-d1/a0-a1,(sp)
+#else
+        movem.l d0-d1/a0-a1,-(sp)
+#endif
+
+        move.w  #1,-(sp)                // indicate port B
+        jbsr    _scc_tx_interrupt_handler
+        lea     2(sp),sp
+
+#ifdef __mcoldfire__
+        movem.l (sp),d0-d1/a0-a1
+        lea     16(sp),sp
+#else
+        movem.l (sp)+,d0-d1/a0-a1
+#endif
+        rte
+
+_sccb_es_interrupt:
+#ifdef __mcoldfire__
+        lea     -16(sp),sp
+        movem.l d0-d1/a0-a1,(sp)
+#else
+        movem.l d0-d1/a0-a1,-(sp)
+#endif
+
+        move.w  #1,-(sp)                // indicate port B
+        jbsr    _scc_es_interrupt_handler
+        lea     2(sp),sp
+
+#ifdef __mcoldfire__
+        movem.l (sp),d0-d1/a0-a1
+        lea     16(sp),sp
+#else
+        movem.l (sp)+,d0-d1/a0-a1
+#endif
+        rte
+
+#endif  //CONF_WITH_SCC
 
 // ==== Critical error handler functions =====================================
 
@@ -1201,81 +1421,6 @@ msgcrb:
 #endif
 
 #endif /* CONF_WITH_BUS_ERROR */
-
-/* ==== Glue for external vectors ===========================================
- *
- * EmuTOS uses d0-d1/a0-a1 as scratch registers. However the original TOS
- * used d0-d2/a0-a2 as scratch registers. For this reason, when jumping into
- * external user-supplied code we need to save/restore d2/a2. The routines
- * below provide the necessary assembler support.
- */
-
-        .globl   _protect_v
-        .globl   _protect_w
-        .globl   _protect_ww
-        .globl   _protect_wlwwwl
-
-/*
- * LONG protect_v(LONG (*func)(void));
- */
-_protect_v:
-        move.l   4(sp),a0
-        move.l   a2,-(sp)
-        move.l   d2,-(sp)
-        jsr      (a0)
-        move.l   (sp)+,d2
-        move.l   (sp)+,a2
-        rts
-
-/*
- * LONG protect_w(LONG (*func)(WORD), WORD);
- */
-_protect_w:
-        move.l   4(sp),a0
-        move.w   8(sp),d0
-        move.l   a2,-(sp)
-        move.l   d2,-(sp)
-        move.w   d0,-(sp)
-        jsr      (a0)
-        addq.l   #2,sp
-        move.l   (sp)+,d2
-        move.l   (sp)+,a2
-        rts
-
-/*
- * LONG protect_ww(LONG (*func)(WORD), WORD, WORD);
- */
-_protect_ww:
-        move.l   4(sp),a0
-        move.l   8(sp),d0
-        move.l   a2,-(sp)
-        move.l   d2,-(sp)
-        move.l   d0,-(sp)
-        jsr      (a0)
-        addq.l   #4,sp
-        move.l   (sp)+,d2
-        move.l   (sp)+,a2
-        rts
-
-/*
- * LONG protect_wlwwwl(LONG (*func)(), WORD, LONG, WORD, WORD, WORD, LONG);
- */
-_protect_wlwwwl:
-        movem.l  8(sp),d0-d1/a0-a1
-        move.l   a2,-(sp)
-        move.l   d2,-(sp)
-#ifdef __mcoldfire__
-        lea      -16(sp),sp
-        movem.l  d0-d1/a0-a1,(sp)
-#else
-        movem.l  d0-d1/a0-a1,-(sp)
-#endif
-        move.l   28(sp),a0
-        jsr      (a0)
-        lea      16(sp),sp
-        move.l   (sp)+,d2
-        move.l   (sp)+,a2
-        rts
 
 /* Compendium says that the scancode is supplied in register d0. */
 _keyclick:

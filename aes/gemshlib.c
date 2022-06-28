@@ -4,7 +4,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2019 The EmuTOS development team
+*                 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -48,6 +48,7 @@
 #include "gemmnlib.h"
 
 #include "string.h"
+#include "miscutil.h"
 
 #include "gemshlib.h"
 #include "../desk/deskstub.h"
@@ -112,12 +113,12 @@ static void sh_curdrvdir(char *ppath)
     /* remember current directory */
     drive = dos_gdrv();
     *ppath++ = drive + 'A';
-    *ppath++ = ':';
+    *ppath++ = DRIVESEP;
     *ppath = '\0';
     dos_gdir(drive+1, ppath);
     if (*ppath == '\0')
     {
-        *ppath++ = '\\';
+        *ppath++ = PATHSEP;
         *ppath = '\0';
     }
 }
@@ -310,7 +311,7 @@ char *sh_name(char *ppath)
      * within the path, so we handle a path like X:AAAAAAAA.BBB before
      * calling the general function
      */
-    if (ppath[0] && (ppath[1] == ':'))
+    if (extract_drive_number(pname))    /* valid prefix exists */
         pname += 2;
 
     return filename_start(pname);
@@ -373,9 +374,9 @@ static char *sh_path(char *src, char *dest, char *pname)
         *dest++ = *p++;
     }
 
-    /* see if extra slash is needed */
-    if ((last != '\\') && (last != ':'))
-        *dest++ = '\\';
+    /* see if extra path separator is needed */
+    if ((last != PATHSEP) && (last != DRIVESEP))
+        *dest++ = PATHSEP;
 
     /* append file name */
     strcpy(dest, pname);
@@ -434,7 +435,7 @@ static WORD findfile(char *pspec)
     }
 
     /* (3) search in the root directory of the current drive */
-    D.g_work[0] = '\\';
+    D.g_work[0] = PATHSEP;
     strcpy(D.g_work+1, pname);
     if (dos_sfirst(D.g_work, FA_RO | FA_HIDDEN | FA_SYSTEM) == 0)   /* found */
     {
@@ -522,24 +523,33 @@ static void sh_chgrf(SHELL *psh)
 }
 
 
+static void set_drvdir(char *path)
+{
+    WORD drive;
+
+    drive = extract_drive_number(path);
+    if (drive >= 0)         /* set default drive (if specified) */
+        dos_sdrv(drive);
+    dos_chdir(path);        /* and default directory */
+}
+
+
 static void sh_chdef(SHELL *psh)
 {
     int n;
 
     switch(psh->sh_nextapp) {
     case NORMAL_APP:
-        if (sh_apdir[1] == ':')     /* set default drive (if specified) */
-            dos_sdrv(sh_apdir[0] - 'A');
-        dos_chdir(sh_apdir);        /* and default directory */
+        set_drvdir(sh_apdir);
         break;
     case CONSOLE_APP:
+#if WITH_CLI
+        set_drvdir(psh->sh_cdir);   /* set by EmuDesk via shel_wdef() */
+#endif
         break;
     case AUTORUN_APP:
     case DESKTOP_APP:
-        if (psh->sh_cdir[1] == ':')
-            dos_sdrv(psh->sh_cdir[0] - 'A');
-        dos_chdir(psh->sh_cdir);
-
+        set_drvdir(psh->sh_cdir);
         /*
          * if not the default desktop, build a fully-qualified name
          */
@@ -549,7 +559,7 @@ static void sh_chdef(SHELL *psh)
             strcpy(D.s_cmd, psh->sh_cdir);
             n = strlen(D.s_cmd);
             if (n)
-                D.s_cmd[n++] = '\\';
+                D.s_cmd[n++] = PATHSEP;
         }
         strcpy(D.s_cmd+n, psh->sh_desk);
         break;
@@ -606,8 +616,7 @@ static WORD sh_ldapp(SHELL *psh)
     {
         /* start the EmuCON shell: */
         aes_run_rom_program(coma_start);
-        psh->sh_nextapp = DESKTOP_APP;
-        psh->sh_isgem = TRUE;
+        set_default_desktop(psh);
         return 0;
     }
 #endif
@@ -641,7 +650,7 @@ static WORD sh_ldapp(SHELL *psh)
         if (rlr->p_flags&AP_OPEN)
         {
             KDEBUG(("sh_ldapp: appl_init() without appl_exit()\n"));
-            mn_clsda();
+            mn_cleanup();
             if (rlr->p_qindex)
                 ap_rdwr(MU_MESAG, rlr, rlr->p_qindex, (WORD *)D.g_valstr);
             rlr->p_flags &= ~AP_OPEN;
@@ -668,23 +677,15 @@ static WORD sh_ldapp(SHELL *psh)
             wm_new();
 
         KDEBUG(("sh_ldapp: %s exited with rc=%ld\n",D.s_cmd,ret));
-        switch(ret)
-        {
-        case EFILNF:
-        case EPTHNF:
-            ret = AL18ERR;      /* "This application cannot find ..." */
-            break;
-        default:
-            if (ret < 0L)
-                ret = AL08ERR;  /* "There is not enough memory ..." */
-            else
-                ret = 0L;
-        }
-        return ret;
+
+        if (ret < 0)
+            return ret;
+        else
+            return 0;
     }
 
     set_default_desktop(psh);   /* ensure something valid will run */
-    return AL18ERR;
+    return EFILNF;
 }
 
 
@@ -713,13 +714,13 @@ void sh_main(BOOL isauto, BOOL isgem)
 
         if (gl_shgem)
         {
-            wm_start();
+            wm_init();                  /* re-init windows, without resetting colours */
             ratinit();
             sh_draw(D.s_cmd, TRUE);     /* clear the screen */
         }
 
-        if (rc)                         /* display alert for most recent error */
-            fm_show(rc, NULL, 1);
+        if (rc && !IS_BIOS_ERROR(rc))   /* display alert for most recent error */
+            fm_error(-rc-31);
 
         rc = sh_ldapp(psh);             /* run the desktop/console/app */
 

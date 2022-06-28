@@ -3,7 +3,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2019 The EmuTOS development team
+*                 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -21,8 +21,10 @@
 #include "obdefs.h"
 #include "aesdefs.h"
 #include "aesext.h"
+#include "aesvars.h"
 #include "gemlib.h"
 
+#include "geminit.h"
 #include "gemevlib.h"
 #include "gemgraf.h"
 #include "gemwmlib.h"
@@ -34,6 +36,7 @@
 #include "rectfunc.h"
 
 #include "intmath.h"
+#include "asm.h"
 
 /*
  *  Routine to watch the mouse while the button is down and it stays
@@ -55,8 +58,13 @@ static BOOL gr_stilldn(BOOL out, WORD x, WORD y, WORD w, WORD h)
     tmpmoblk.m_gr.g_w = w;
     tmpmoblk.m_gr.g_h = h;
 
+#if CONF_WITH_MENU_EXTENSION
+    which = ev_multi(MU_KEYBD | MU_BUTTON | MU_M1, &tmpmoblk, NULL,
+                    NULL, 0x0L, 0x0001ff00L, NULL, rets);
+#else
     which = ev_multi(MU_KEYBD | MU_BUTTON | MU_M1, &tmpmoblk,
                     NULL, 0x0L, 0x0001ff00L, NULL, rets);
+#endif
 
     if (which & MU_BUTTON)
         return FALSE;
@@ -351,9 +359,32 @@ WORD gr_slidebox(OBJECT *tree, WORD parent, WORD obj, WORD isvert)
 {
     GRECT   t, c;
     WORD    divnd, divis;
+    BOOL    xy_adjust;
+    MAYBE_UNUSED(xy_adjust);
 
     ob_actxywh(tree, parent, &c);
     ob_relxywh(tree, obj, &t);
+
+#if CONF_WITH_3D_OBJECTS
+    xy_adjust = FALSE;
+
+    /*
+     * if the child is 3D, adjust its width & height and
+     * (iff the parent is non-3D) its position too
+     */
+    if (tree[obj].ob_flags & FL3DOBJ)
+    {
+        t.g_w += 2 * ADJ3DSTD;
+        t.g_h += 2 * ADJ3DSTD;
+        if (!(tree[parent].ob_flags & FL3DOBJ))
+        {
+            t.g_x -= ADJ3DSTD;
+            t.g_y -= ADJ3DSTD;
+            xy_adjust = TRUE;
+        }
+    }
+#endif
+
     gr_dragbox(t.g_w, t.g_h, t.g_x + c.g_x, t.g_y + c.g_y,
                 &c, &t.g_x, &t.g_y);
 
@@ -368,10 +399,59 @@ WORD gr_slidebox(OBJECT *tree, WORD parent, WORD obj, WORD isvert)
         divis = c.g_w - t.g_w;
     }
 
+#if CONF_WITH_3D_OBJECTS
+    if (xy_adjust && divnd)
+        divnd += ADJ3DSTD;
+    if (divnd > divis)
+        divnd = divis;
+#endif
+
     if (divis)
-        return mul_div(divnd, 1000, divis);
+        return mul_div_round(divnd, 1000, divis);
     else
         return 0;
+}
+
+
+/*
+ * handle graf_mouse() processing
+ */
+void gr_mouse(WORD mode, MFORM *maddr)
+{
+    MFORM temp;
+    MAYBE_UNUSED(temp);
+
+    switch(mode)
+    {
+    default:
+        if ((mode < ARROW) || (mode > OUTLN_CROSS))
+            mode = ARROW;       /* fail safe */
+        maddr = mouse_cursor[mode];
+        break;
+    case USER_DEF:
+        break;
+    case M_OFF:
+        gsx_moff();
+        return;
+    case M_ON:
+        gsx_mon();
+        return;
+#if CONF_WITH_GRAF_MOUSE_EXTENSION
+    case M_SAVE:
+        rlr->p_mouse = gl_mouse;
+        return;
+    case M_RESTORE:
+        maddr = &rlr->p_mouse;
+        break;
+    case M_PREVIOUS:
+        /* we must use a temp because gsx_mfset() updates gl_prevmouse */
+        temp = gl_prevmouse;
+        maddr = &temp;
+        break;
+#endif
+    }
+
+    gsx_mfset(maddr);
 }
 
 

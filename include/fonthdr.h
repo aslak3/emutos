@@ -4,7 +4,7 @@
  * This file exists to centralise the definition of the font header,
  * which was previously defined in two different places.
  *
- * Copyright (C) 2015-2019 The EmuTOS development team
+ * Copyright (C) 2015-2021 The EmuTOS development team
  *
  * Authors:
  *  RFB    Roger Burrows
@@ -56,6 +56,7 @@ struct font_head {
     UWORD form_height;          /* height of raster in lines */
 
     Fonthead *next_font;        /* pointer to next font */
+    UWORD reserved;             /* Atari-reserved flag */
 };
 
 #endif /* FONTHDR_H */

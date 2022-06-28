@@ -1,7 +1,7 @@
 /*
  * EmuCON2 command history handling
  *
- * Copyright (C) 2013-2019 The EmuTOS development team
+ * Copyright (C) 2013-2021 The EmuTOS development team
  *
  * Authors:
  *  RFB    Roger Burrows
@@ -390,7 +390,7 @@ PRIVATE char *insertion_point(char *start)
 char *p, *ins = NULL;
 
     for (p = ins = start; *p; p++) {
-        if ((*p == ':') || (*p == '\\'))
+        if ((*p == DRIVESEP) || (*p == PATHSEP))
             ins = p+1;
     }
 
@@ -445,8 +445,6 @@ PRIVATE LONG getfirstnondot(const char *buffer,WORD executable_only)
 LONG rc;
 
     for (rc = Fsfirst(buffer,0x17); !rc; rc=Fsnext()) {
-        if (rc < 0L)
-            break;
         if (dta->d_fname[0] == '.') /* ignore . & .. */
             continue;
         if (!executable_only)

@@ -3,7 +3,7 @@
  *
  *
  * Copyright (C) 2004 by Authors (see below)
- * Copyright (C) 2016-2019 The EmuTOS development team
+ * Copyright (C) 2016-2020 The EmuTOS development team
  *
  * Authors:
  *  MAD     Martin Doering
@@ -480,14 +480,6 @@ void blank_out(int topx, int topy, int botx, int boty)
      * see comments re cell-pairs above
      */
     rows = (boty - topy + 1) * v_cel_ht;
-
-    /*
-     * if the screen height is not an exact multiple of the font height,
-     * there are remaining screen lines below the last text line, which
-     * should be cleared too.
-     */
-    if (boty == v_cel_my)
-        rows = V_REZ_VT - topy * v_cel_ht;
 
     if (v_planes > 1) {
         /* Color modes are optimized for handling 2 planes at once */

@@ -1,7 +1,7 @@
 /*
  * bdosstub.h - BDOS entry points, called by BIOS
  *
- * Copyright (C) 2019 The EmuTOS development team
+ * Copyright (C) 2019-2021 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -16,7 +16,6 @@
  * This is done in 2 parts: before and after Alt-RAM is available */
 void osinit_before_xmaddalt(void);
 void osinit_after_xmaddalt(void);
-void osinit_environment(void);
 
 #if CONF_WITH_ALT_RAM
 /* Register an Alt-RAM region to BDOS */

@@ -1,7 +1,7 @@
 /*
  * ikbd.c - Intelligent keyboard routines
  *
- * Copyright (C) 2001-2019 The EmuTOS development team
+ * Copyright (C) 2001-2021 The EmuTOS development team
  *
  * Authors:
  *  LVL   Laurent Vogel
@@ -37,9 +37,8 @@
 #include "delay.h"
 #include "bios.h"
 #include "coldfire.h"
-#ifdef MACHINE_AMIGA
 #include "amiga.h"
-#endif
+#include "lisa.h"
 
 
 /* forward declarations */
@@ -147,50 +146,13 @@ LONG kbshift(WORD flag)
 {
     WORD oldshifty = shifty;
 
-    if (flag != -1)
+    if (flag >= 0)
         shifty = flag;
 
     return oldshifty;
 }
 
 /*=== iorec handling (bios) ==============================================*/
-
-LONG bconstat2(void)
-{
-    if (ikbdiorec.head == ikbdiorec.tail) {
-        return 0;               /* iorec empty */
-    } else {
-        return -1;              /* not empty => input available */
-    }
-}
-
-LONG bconin2(void)
-{
-    WORD old_sr;
-    ULONG value;
-
-    while (!bconstat2()) {
-#if USE_STOP_INSN_TO_FREE_HOST_CPU
-        stop_until_interrupt();
-#endif
-    }
-    /* disable interrupts */
-    old_sr = set_sr(0x2700);
-
-    ikbdiorec.head += 4;
-    if (ikbdiorec.head >= ikbdiorec.size) {
-        ikbdiorec.head = 0;
-    }
-    value = *(ULONG_ALIAS *) (ikbdiorec.buf + ikbdiorec.head);
-
-    /* restore interrupts */
-    set_sr(old_sr);
-
-    if (!(conterm & 8))         /* shift status not wanted? */
-        value &= 0x00ffffffL;   /* true, so clean it out */
-
-    return value;
-}
 
 static void push_ikbdiorec(ULONG value)
 {
@@ -226,8 +188,8 @@ static UBYTE scancode_from_ascii(UBYTE ascii, const UBYTE *table)
     return 0;
 }
 
-/* Emulate a key press from an ASCII character */
-void push_ascii_ikbdiorec(UBYTE ascii)
+/* Guess full KBD record from ASCII character */
+static ULONG ikbdiorec_from_ascii(UBYTE ascii)
 {
     UBYTE scancode = 0;
     UBYTE mode = 0;
@@ -256,10 +218,69 @@ void push_ascii_ikbdiorec(UBYTE ascii)
     value = MAKE_ULONG(scancode, ascii);
     value |= (ULONG)mode << 24;
 
+    return value;
+}
+
+/* Emulate a key press from an ASCII character */
+void push_ascii_ikbdiorec(UBYTE ascii)
+{
+    ULONG value;
+
+    value = ikbdiorec_from_ascii(ascii);
     push_ikbdiorec(value);
 }
 
 #endif /* CONF_SERIAL_CONSOLE */
+
+LONG bconstat2(void)
+{
+#if CONF_SERIAL_CONSOLE_POLLING_MODE
+    /* Poll the serial port */
+    return bconstat(1);
+#else
+    /* Check the IKBD IOREC */
+    if (ikbdiorec.head == ikbdiorec.tail) {
+        return 0;               /* iorec empty */
+    } else {
+        return -1;              /* not empty => input available */
+    }
+#endif
+}
+
+LONG bconin2(void)
+{
+    ULONG value;
+#if CONF_SERIAL_CONSOLE_POLLING_MODE
+    /* Poll the serial port */
+    UBYTE ascii = (UBYTE)bconin(1);
+    value = ikbdiorec_from_ascii(ascii);
+#else
+    /* Check the IKBD IOREC */
+    WORD old_sr;
+
+    while (!bconstat2()) {
+#if USE_STOP_INSN_TO_FREE_HOST_CPU
+        stop_until_interrupt();
+#endif
+    }
+    /* disable interrupts */
+    old_sr = set_sr(0x2700);
+
+    ikbdiorec.head += 4;
+    if (ikbdiorec.head >= ikbdiorec.size) {
+        ikbdiorec.head = 0;
+    }
+    value = *(ULONG_ALIAS *) (ikbdiorec.buf + ikbdiorec.head);
+
+    /* restore interrupts */
+    set_sr(old_sr);
+#endif /* CONF_SERIAL_CONSOLE_POLLING_MODE */
+
+    if (!(conterm & 8))         /* shift status not wanted? */
+        value &= 0x00ffffffL;   /* true, so clean it out */
+
+    return value;
+}
 
 /*
  * emulated mouse support (alt-arrowkey support)
@@ -942,7 +963,7 @@ void ikbd_writeb(UBYTE b)
     ikbd_acia.data = b;
 #elif CONF_WITH_FLEXCAN
     coldfire_flexcan_ikbd_writeb(b);
-#elif defined (MACHINE_AMIGA)
+#elif defined(MACHINE_AMIGA)
     amiga_ikbd_writeb(b);
 #endif
 }
@@ -1040,14 +1061,6 @@ static void ikbd_reset(void)
 
 void kbd_init(void)
 {
-#if CONF_SERIAL_CONSOLE
-# ifdef __mcoldfire__
-    coldfire_rs232_enable_interrupt();
-# else
-    /* FIXME: Enable interrupts on other hardware. */
-# endif
-#endif /* CONF_SERIAL_CONSOLE */
-
 #if CONF_WITH_IKBD_ACIA
     /* initialize ikbd ACIA */
     ikbd_acia.ctrl = ACIA_RESET;        /* master reset */
@@ -1065,6 +1078,10 @@ void kbd_init(void)
 
 #ifdef MACHINE_AMIGA
     amiga_kbd_init();
+#endif
+
+#ifdef MACHINE_LISA
+    lisa_kbd_init();
 #endif
 
     /* initialize the IKBD */

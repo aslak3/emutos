@@ -4,7 +4,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2019 The EmuTOS development team
+*                 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -70,7 +70,7 @@ PNODE *pn_open(char *pathname, WNODE *pw)
 {
     PNODE *thepath;
 
-    if (strlen(pathname) >= MAXPATHLEN)
+    if (strlen(pathname) >= LEN_ZPATH)
         return NULL;
 
     /*
@@ -307,4 +307,46 @@ void pn_clear(WNODE *pw)
 
     for (pf = pw->w_pnode.p_flist; pf; pf = pf->f_next)
         pf->f_selected = FALSE;
+}
+
+
+/*
+ *  Return the FNODE associated with the first selected file in the PNODE
+ *  within the specified WNODE
+ *
+ *  returns NULL if no selected files
+ */
+FNODE *pn_selected(WNODE *pw)
+{
+    FNODE *pf;
+
+    for (pf = pw->w_pnode.p_flist; pf; pf = pf->f_next)
+        if (pf->f_selected)
+            break;
+
+    return pf;
+}
+
+
+/*
+ *  Count the number of selected FNODES and (of those) the number of
+ *  application FNODEs
+ */
+void pn_count(WNODE *pw, WORD *psel, WORD *papp)
+{
+    WORD sel = 0, app = 0;
+    FNODE *pf;
+
+    for (pf = pw->w_pnode.p_flist; pf; pf = pf->f_next)
+    {
+        if (pf->f_selected)
+        {
+            sel++;
+            if (pf->f_isap)
+                app++;
+        }
+    }
+
+    *psel = sel;
+    *papp = app;
 }

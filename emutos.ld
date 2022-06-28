@@ -1,7 +1,7 @@
 /*
  * emutos.ld - Custom linker script for EmuTOS ROM
  *
- * Copyright (C) 2016-2019 The EmuTOS development team
+ * Copyright (C) 2016-2020 The EmuTOS development team
  *
  * Authors:
  *  VRI   Vincent Rivière
@@ -20,13 +20,13 @@ OUTPUT_FORMAT(binary)
 #if !EMUTOS_LIVES_IN_RAM
 
 /* The ROM address depends on the target */
-#if defined (MACHINE_AMIGA)
+#if defined(MACHINE_AMIGA)
 # define ROM_ORIGIN 0x00fc0000
 #elif defined (MACHINE_MAXI030)
 # define ROM_ORIGIN 0xff002000
 #elif defined (TARGET_CART)
 # define ROM_ORIGIN 0x00fa0000
-#elif defined (TARGET_192)
+#elif defined(TARGET_192)
 # define ROM_ORIGIN 0x00fc0000
 #else
 # define ROM_ORIGIN 0x00e00000

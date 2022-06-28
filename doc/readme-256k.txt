@@ -7,7 +7,7 @@ These ROMs are suitable for the following hardware:
 
 Note: Extra hardware is autodetected, but the following TT- and
 Falcon-specific hardware is not supported: memory control unit,
-video, SCSI, NVRAM, and the second MFP of a TT.
+video, DSP, SCSI, NVRAM, and the second MFP of a TT.
 
 The desktop features are comparable to Atari TOS 2.
 
@@ -19,12 +19,15 @@ etos256es.img - Spanish (PAL)
 etos256fi.img - Finnish (PAL)
 etos256fr.img - French (PAL)
 etos256gr.img - Greek (PAL)
+etos256hu.img - Hungarian (PAL)
 etos256it.img - Italian (PAL)
 etos256nl.img - Dutch (PAL)
 etos256no.img - Norwegian (PAL)
+etos256pl.img - Polish (PAL)
 etos256ru.img - Russian (PAL)
 etos256se.img - Swedish (PAL)
 etos256sg.img - Swiss German (PAL)
+etos256tr.img - Turkish (PAL)
 etos256us.img - English (NTSC)
 etos256uk.img - English (PAL)
 

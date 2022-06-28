@@ -1,7 +1,7 @@
 /*
  * biosdefs.h - Public BIOS defines and structures
  *
- * Copyright (C) 2016-2019 The EmuTOS development team
+ * Copyright (C) 2016-2021 The EmuTOS development team
  *
  * Authors:
  *  RFB   Roger Burrows
@@ -13,6 +13,9 @@
 
 #ifndef BIOSDEFS_H
 #define BIOSDEFS_H
+
+/* Number of hz_200 ticks per second */
+#define CLOCKS_PER_SEC 200UL
 
 /*
  * Universal constant (for older drives, anyway)
@@ -79,7 +82,7 @@ typedef struct _bpb BPB;
  *  flags for BPB
  */
 #define B_16    1       /* device has 16-bit FATs */
-#define B_FIX   2       /* device has fixed media */
+#define B_1FAT  2       /* device has only a single FAT */
 
 /*
  * Flags for Kbshift()
@@ -117,16 +120,17 @@ struct kbdvecs
  */
 typedef void (*ETV_TIMER_T)(int ms); /* Type of BDOS Event Timer */
 
-/* TT resolutions */
-#define TT_HIGH        6
-#define TT_MEDIUM      4
-#define TT_LOW         7
+/* standard Atari resolution values */
+#define ST_LOW          0   /* used for ST/STe */
+#define ST_MEDIUM       1
+#define ST_HIGH         2
+#define FALCON_REZ      3   /* used as a Falcon indicator */
+#define TT_MEDIUM       4   /* used for TT */
+#define TT_HIGH         6
+#define TT_LOW          7
 
-/* ST(e) resolutions */
-#define ST_HIGH        2
-#define ST_MEDIUM      1
-#define ST_LOW         0
-#define FALCON_REZ     3    /* used as a Falcon indicator */
+#define MIN_REZ         ST_LOW          /* valid range (except that 5 isn't used) */
+#define MAX_REZ         TT_LOW
 
 /* monitor types (from VgetMonitor()) */
 #define MON_MONO       0    /* ST monochrome */
@@ -167,5 +171,38 @@ typedef void (*ETV_TIMER_T)(int ms); /* Type of BDOS Event Timer */
 #define IDT_YYDDMM (IDT_BIT_YM | IDT_BIT_DM)
 #define IDT_DMASK  (IDT_BIT_YM | IDT_BIT_DM)
 #define IDT_SMASK  0xFF  /* separator mask */
+
+/* Mfpint() vector indices */
+/* Taken from MiNTLib's include/mint/ostruct.h */
+#define MFP_PARALLEL           0
+#define MFP_DCD                1
+#define MFP_CTS                2
+#define MFP_BITBLT             3
+#define MFP_TIMERD             4
+#define MFP_BAUDRATE  MFP_TIMERD
+#define MFP_200HZ              5
+#define MFP_ACIA               6
+#define MFP_DISK               7
+#define MFP_TIMERB             8
+#define MFP_HBLANK    MFP_TIMERB
+#define MFP_TERR               9
+#define MFP_TBE               10
+#define MFP_RERR              11
+#define MFP_RBF               12
+#define MFP_TIMERA            13
+#define MFP_DMASOUND  MFP_TIMERA
+#define MFP_RING              14
+#define MFP_MONODETECT        15
+
+/* Bitmasks for Offgibit()/Ongibit() */
+/* Taken from MiNTLib's include/mint/ostruct.h */
+#define GI_FLOPPYSIDE   0x01
+#define GI_FLOPPYA      0x02
+#define GI_FLOPPYB      0x04
+#define GI_RTS          0x08
+#define GI_DTR          0x10
+#define GI_STROBE       0x20
+#define GI_GPO          0x40
+#define GI_SCCPORT      0x80
 
 #endif /* BIOSDEFS_H */

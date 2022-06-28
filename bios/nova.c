@@ -1,7 +1,7 @@
 /*
  * nova.c - Nova/Vofa/Wittich adapter graphics card routines
  *
- * Copyright (C) 2018-2020 The EmuTOS development team
+ * Copyright (C) 2018-2021 The EmuTOS development team
  *
  * Authors:
  * Christian Zietz
@@ -48,7 +48,7 @@ static int use_16bit_io;
 
 #define CRTC_I  0x3D4   /* CRT Controller index and data ports */
 #define CRTC_D  0x3D5
-#define GDC_SEG 0x3CD   /* GDC segement select, index and data ports */
+#define GDC_SEG 0x3CD   /* GDC segment select, index and data ports */
 #define GDC_I   0x3CE
 #define GDC_D   0x3CF
 #define TS_I    0x3C4   /* Timing Sequencer index and data ports */
@@ -101,11 +101,11 @@ static const UBYTE vga_TS_1_4[] = {0x01,0x01,0x00,0x06};
 /* Timing Sequencer registers 6...8 */
 static const UBYTE et4000_TS_6_8[] = {0x00,0xF4,0x03};
 /* Misc Output Write Register */
-static const UBYTE vga_MISC_W = 0x63; /* sync polarity: H-, V+ */
+static const UBYTE vga_MISC_W = 0xE3; /* sync polarity: H-, V- */
 /* CRT Controller: registers 0 - 0x18 */
 static const UBYTE vga_CRTC_0_0x18[] = {0x5F,0x4F,0x50,0x82,
-    0x54,0x80,0xBF,0x1F,0x00,0x40,0x00,0x00,0x00,0x00,0x00,
-    0x00,0x9C,0x0E,0x8F,0x28,0x00,0x96,0xB9,0xC3,0xFF};
+    0x54,0x80,0x0B,0x3E,0x00,0x40,0x00,0x00,0x00,0x00,0x00,
+    0x00,0xEA,0x0C,0xDF,0x28,0x00,0xE7,0x04,0xC3,0xFF};
 /* CRT Controller: registers 0x33 - 0x35 */
 static const UBYTE et4000_CRTC_0x33_0x35[] = {0x00,0x00,0x00};
 /* Attribute Controller: registers 0 - 0x16 */
@@ -197,7 +197,7 @@ void detect_nova(void)
     }
     else if (HAS_VME && check_read_byte(0x00DC0000UL+VIDSUB))
     {
-        /* Nova in Atari MegaSTE */
+        /* Nova in Atari MegaSTe */
         novaregbase = (UBYTE *)0x00DC0000UL;
         novamembase = (UBYTE *)0x00C00000UL;
         has_nova = 1;
@@ -272,7 +272,7 @@ static void init_mach32(void)
     VGAREG(MEM_BNDRY) = 0x00;
     VGAREG_W(MEM_CFG) = 0x0202;
     VGAREG_W(ROM_ADDR_1) = 0x0040;
-    // VGAREG_W(SCRATCH_PAD_1) = 0x0000;
+    /* VGAREG_W(SCRATCH_PAD_1) = 0x0000; */
     VGAREG(ADVFUNC_CNTL) = 0x03;    /* Go to 8514 mode */
     VGAREG_W(SUBSYS_CNTL) = 0x90;   /* 8514 reset */
     VGAREG_W(SUBSYS_CNTL) = 0x50;
@@ -285,7 +285,7 @@ static void init_mach32(void)
     VGAREG(MISC_CNTL+1) = (VGAREG(R_MISC_CNTL+1) & 0xF0) | 0x0C;
     VGAREG_W(EXT_GE_CONFIG) = 0x1A40; /* DAC 8 bit mode. */
     VGAREG_W(HORZ_OVERSCAN) = 0;
-    //VGAREG(ATI_DAC_R2) = 0xFF     /* DAC mask register. Set later. */
+    /* VGAREG(ATI_DAC_R2) = 0xFF; */   /* DAC mask register. Set later. */
 
     VGAREG_W(CLOCK_SEL) = 0x5002;   /* Back to ATI mode and clock select */
 
@@ -466,7 +466,7 @@ static void init_nova_resolution(int is_mach32)
    Instead, this function counts the number of VBLs for half a second.
 */
 #define VBL_TIMEOUT 100 /* 0.5 second */
-#define VBL_LIMIT   30  /* nominally: 70 Hz, i.e. 35 VBLs in 0.5s */
+#define VBL_LIMIT   25  /* nominally: 60 Hz, i.e. 30 VBLs in 0.5s */
 static void count_vbls(void)
 {
     LONG end = hz_200 + VBL_TIMEOUT;
@@ -534,7 +534,7 @@ static void init_system_vars(void)
     /* Bytes per scan-line */
     BYTES_LIN = v_lin_wr = 80;
     /* Vertical resolution */
-    V_REZ_VT = 400;
+    V_REZ_VT = 480;
     /* Horizontal resolution */
     V_REZ_HZ = 640;
 }
@@ -589,6 +589,11 @@ int init_nova(void)
     init_system_vars();
 
     return 1;
+}
+
+UBYTE* get_novamembase(void)
+{
+    return (UBYTE *)novamembase;
 }
 
 #endif /* CONF_WITH_NOVA */

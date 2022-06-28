@@ -1,7 +1,7 @@
 /*
  * EmuCON2 utility routines
  *
- * Copyright (C) 2013-2019 The EmuTOS development team
+ * Copyright (C) 2013-2021 The EmuTOS development team
  *
  * Authors:
  *  RFB    Roger Burrows
@@ -236,7 +236,7 @@ char *q = dest;
      *  look for start of next component
      */
     for (p = *pp; *p; p++)
-        if (*p != ';')
+        if ((*p != ';') && (*p != ','))
             break;
     if (!*p) {          /* end of buffer */
         *pp = p;
@@ -244,7 +244,7 @@ char *q = dest;
     }
 
     while(*p) {
-        if (*p == ';')
+        if ((*p == ';') || (*p == ','))
             break;
         *q++ = *p++;
     }
@@ -388,6 +388,22 @@ int toupper(int c)
         return(c-'a'+'A');
     else
         return(c);
+}
+
+int strncmp(const char *a, const char *b, size_t n)
+{
+    unsigned char s1, s2;
+
+    while(n-- > 0) {
+        s1 = (unsigned char)*a++;
+        s2 = (unsigned char)*b++;
+        if (s1 != s2)
+            return s1 - s2;
+        if (s1 == '\0')
+            break;
+    }
+
+    return 0;
 }
 
 int strncasecmp(const char *a, const char *b, size_t n)

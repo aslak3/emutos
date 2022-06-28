@@ -1,7 +1,7 @@
 /*
  * blkdev.c - BIOS block device functions
  *
- * Copyright (C) 2002-2019 The EmuTOS development team
+ * Copyright (C) 2002-2021 The EmuTOS development team
  *
  * Authors:
  *  MAD     Martin Doering
@@ -19,7 +19,6 @@
 #include "asm.h"
 #include "tosvars.h"
 #include "ahdi.h"
-#include "mfp.h"
 #include "floppy.h"
 #include "disk.h"
 #include "ikbd.h"
@@ -476,6 +475,9 @@ static LONG blkdev_rwabs(WORD rw, UBYTE *buf, WORD cnt, WORD recnr, WORD dev, LO
                 return E_CHNG;
             }
         }
+
+        /* In logical mode RW_NOBYTESWAP is not supported. */
+        rw &= ~RW_NOBYTESWAP;
     }
     else {                              /* physical */
         if (unit < 0 || unit >= UNITSNUM || !units[unit].valid)
@@ -567,7 +569,7 @@ LONG blkdev_getbpb(WORD dev)
     BLKDEV *bdev = blkdev + dev;
     struct bs *b;
     struct fat16_bs *b16;
-    ULONG tmp;
+    ULONG tmp, clsizb;
     LONG ret;
     UWORD reserved, recsiz;
     int n, unit;
@@ -575,7 +577,10 @@ LONG blkdev_getbpb(WORD dev)
     KDEBUG(("blkdev_getbpb(%d)\n",dev));
 
     if ((dev < 0 ) || (dev >= BLKDEVNUM) || !(bdev->flags&DEVICE_VALID))
+    {
+        KDEBUG(("device is invalid\n"));
         return 0L;  /* unknown device */
+    }
 
     unit = bdev->unit;
 
@@ -603,7 +608,10 @@ LONG blkdev_getbpb(WORD dev)
 
     /* check if this device supports GetBPB() */
     if (!(bdev->flags & GETBPB_ALLOWED))
+    {
+        KDEBUG(("device does not support Getbpb()\n"));
         return 0L;              /* no can do */
+    }
 
     /*
      * now we can read the bootsector using the physical mode.  for
@@ -619,25 +627,45 @@ LONG blkdev_getbpb(WORD dev)
     } while(ret == CRITIC_RETRY_REQUEST);
 
     if (ret < 0L)
+    {
+        KDEBUG(("can't read boot sector\n"));
         return 0L;  /* error */
+    }
 
     b = (struct bs *)dskbufp;
     b16 = (struct fat16_bs *)dskbufp;
 
-    if (b->spc == 0)
-        return 0L;
-
     /* don't login a disk if the logical sector size is too large */
     recsiz = getiword(b->bps);
     if (recsiz > pun_info.max_sect_siz)
+    {
+        KDEBUG(("recsiz %u is too large (max recsiz = %u)\n",
+                recsiz,pun_info.max_sect_siz));
         return 0L;
+    }
+
+    /* don't login a disk if the cluster size (in bytes) is invalid */
+    clsizb = (ULONG)b->spc * recsiz;
+    if ((clsizb == 0UL) || (clsizb > MAX_CLUSTER_SIZE))
+    {
+        KDEBUG(("invalid cluster size (%lu bytes): spc=%u, recsiz=%u\n",
+                clsizb,b->spc,recsiz));
+        return 0L;
+    }
+
+    /* don't login a disk if the number of FATs is unsupported */
+    if ((b->fat < MIN_FATS) || (b->fat > MAX_FATS))
+    {
+        KDEBUG(("invalid FAT count %u\n",b->fat));
+        return 0L;
+    }
 
     KDEBUG(("bootsector[dev=%d] = {\n  ...\n  res = %d;\n  hid = %d;\n}\n",
             dev,getiword(b->res),getiword(b->hid)));
 
     bdev->bpb.recsiz = recsiz;
     bdev->bpb.clsiz = b->spc;
-    bdev->bpb.clsizb = bdev->bpb.clsiz * bdev->bpb.recsiz;
+    bdev->bpb.clsizb = clsizb;
 
     /*
      * determine the number of root directory sectors
@@ -665,7 +693,13 @@ LONG blkdev_getbpb(WORD dev)
     reserved = getiword(b->res);
     if (reserved == 0)      /* should not happen */
         reserved = 1;       /* but if it does, Atari TOS assumes this */
-    bdev->bpb.fatrec = reserved + bdev->bpb.fsiz;
+    bdev->bpb.fatrec = reserved;
+    /*
+     * with 2 FATs, use 2nd FAT by default.
+     * The code that flushes the FATs also assumes this.
+     */
+    if (b->fat >= 2)
+        bdev->bpb.fatrec += bdev->bpb.fsiz;
     bdev->bpb.datrec = bdev->bpb.fatrec + bdev->bpb.fsiz + bdev->bpb.rdlen;
 
     /*
@@ -689,9 +723,11 @@ LONG blkdev_getbpb(WORD dev)
      * the FAT format, after all), FAT type should be determined on the
      * basis of cluster count and nothing else
      */
+    bdev->bpb.b_flags = 0;         /* FAT12 */
     if (bdev->bpb.numcl > MAX_FAT12_CLUSTERS)
-        bdev->bpb.b_flags = B_16;       /* FAT16 */
-    else bdev->bpb.b_flags = 0;         /* FAT12 */
+        bdev->bpb.b_flags |= B_16;      /* FAT16 */
+    if (b->fat < 2)
+        bdev->bpb.b_flags |= B_1FAT;
 
     /* additional geometry info */
     bdev->geometry.sides = getiword(b->sides);
@@ -721,11 +757,13 @@ LONG blkdev_getbpb(WORD dev)
 static LONG blkdev_mediach(WORD dev)
 {
     BLKDEV *b = &blkdev[dev];
-    UWORD unit = b->unit;
+    UWORD unit;
     LONG ret;
 
     if ((dev < 0 ) || (dev >= BLKDEVNUM) || !(b->flags&DEVICE_VALID))
         return EUNDEV;  /* unknown device */
+
+    unit = b->unit;
 
     /* if we've already marked the drive as MEDIACHANGE, don't change it */
     if (b->mediachange == MEDIACHANGE)
@@ -774,7 +812,7 @@ LONG blkdev_drvmap(void)
 
 
 /*
- * blkdev_avail - Read drive bitmapCheck drive availability
+ * blkdev_avail - Check drive availability
  *
  * Returns 0, if drive not available
  */

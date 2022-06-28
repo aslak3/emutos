@@ -1,7 +1,7 @@
 /*
  * screen.h - low-level screen routines
  *
- * Copyright (C) 2013-2019 The EmuTOS development team
+ * Copyright (C) 2013-2021 The EmuTOS development team
  *
  * Authors:
  *  PES   Petr Stehlik
@@ -16,7 +16,13 @@
 
 #if CONF_WITH_VIDEL
 
-#define SPSHIFT             0xffff8266L
+/* Falcon video shift register */
+#define SPSHIFT         0xffff8266L
+
+/* some bit usage in SPSHIFT */
+#define SPS_2COLOR      0x0400          /* 1 bitplane (mono) */
+#define SPS_HICOLOR     0x0100          /* 16-bit colour */
+#define SPS_256COLOR    0x0010          /* 8 bitplanes */
 
 #define FRGB_BLACK     0x00000000       /* Falcon palette */
 #define FRGB_BLUE      0x000000ff
@@ -39,7 +45,9 @@
 #define VALID_VDI_BPP(mode) ((mode&VIDEL_BPPMASK)<=VIDEL_8BPP)
 
 /* selected Falcon videomodes */
-#define FALCON_ST_HIGH      (VIDEL_COMPAT|VIDEL_VGA|VIDEL_80COL|VIDEL_1BPP)
+#define FALCON_ST_HIGH      (VIDEL_COMPAT|VIDEL_80COL|VIDEL_1BPP)
+#define FALCON_ST_MEDIUM    (VIDEL_COMPAT|VIDEL_80COL|VIDEL_2BPP)
+#define FALCON_ST_LOW       (VIDEL_COMPAT|VIDEL_4BPP)
 
 #define FALCON_DEFAULT_BOOT (VIDEL_VERTICAL|VIDEL_80COL|VIDEL_4BPP) /* 640x480x16 colours, TV, NTSC */
 
@@ -70,11 +78,12 @@ WORD vsetsync(WORD external);
 LONG vgetsize(WORD mode);
 WORD vsetrgb(WORD index,WORD count,const ULONG *rgb);
 WORD vgetrgb(WORD index,WORD count,ULONG *rgb);
+WORD vfixmode(WORD mode);
 
 /* misc routines */
-WORD vfixmode(WORD mode);
 WORD videl_check_moderez(WORD moderez);
 void videl_get_current_mode_info(UWORD *planes, UWORD *hz_rez, UWORD *vt_rez);
+void videl_setrez(WORD rez, WORD videlmode);
 
 extern WORD current_video_mode;
 

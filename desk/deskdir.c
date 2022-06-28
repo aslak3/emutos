@@ -5,7 +5,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2019 The EmuTOS development team
+*                 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -25,6 +25,7 @@
 #include "obdefs.h"
 #include "gemdos.h"
 #include "optimize.h"
+#include "miscutil.h"
 
 #include "deskbind.h"
 #include "deskglob.h"
@@ -148,7 +149,7 @@ static void sub_path(char *path)
 
     /* now back up to previous directory in path */
     path -= 2;
-    while (*path != '\\')
+    while (*path != PATHSEP)
         path--;
 
     strcpy(path, "\\*.*");
@@ -166,16 +167,6 @@ char *add_fname(char *path, char *new_name)
     path = filename_start(path);
 
     return strcpy(path, new_name);
-}
-
-
-/*
- *  Restores "*.*" to the position in a path that was
- *  overwritten by add_fname() above
- */
-void restore_path(char *target)
-{
-    strcpy(target,"*.*");
 }
 
 
@@ -209,7 +200,7 @@ static WORD item_exists(char *path, BOOL is_folder)
  */
 void del_fname(char *pstr)
 {
-    strcpy(filename_start(pstr), "*.*");
+    set_all_files(filename_start(pstr));
 }
 
 
@@ -659,14 +650,14 @@ WORD d_doop(WORD level, WORD op, char *psrc_path, char *pdst_path, OBJECT *tree,
             ptmpdst = add_fname(pdst_path, dta->d_fname);
             more = d_dofcopy(psrc_path, pdst_path, dta->d_time,
                             dta->d_date, dta->d_attrib);
-            restore_path(ptmpdst);  /* restore original dest path */
+            set_all_files(ptmpdst); /* restore original dest path */
             /* if moving, delete original only if copy was ok */
             if ((op == OP_MOVE) && (more > 0))
                 more = d_dofdel(psrc_path);
             break;
         }
         if (op != OP_COUNT)
-            restore_path(ptmp);     /* restore original source path */
+            set_all_files(ptmp);    /* restore original source path */
         if (tree)
         {
             inf_numset(tree, CDFILES, --(count->files));
@@ -932,7 +923,7 @@ WORD dir_op(WORD op, WORD icontype, PNODE *pspath, char *pdst_path, DIRCOUNT *co
 
     if (tree)
     {
-        centre_title(tree);
+        align_title(tree);
         inf_numset(tree, CDFILES, count->files);
         inf_numset(tree, CDFOLDS, count->dirs);
         start_dialog(tree);
@@ -942,7 +933,7 @@ WORD dir_op(WORD op, WORD icontype, PNODE *pspath, char *pdst_path, DIRCOUNT *co
             desk_busy_off();
             form_do(tree, 0);
             desk_busy_on();
-            more = inf_what(tree, CDOK, CDCNCL);
+            more = (tree[CDOK].ob_state & SELECTED) ? TRUE : FALSE;
         }
     }
 
@@ -1021,14 +1012,14 @@ WORD dir_op(WORD op, WORD icontype, PNODE *pspath, char *pdst_path, DIRCOUNT *co
             ptmpdst = add_fname(dstpth, pf->f_name);
             more = (op==OP_RENAME) ? d_dofileren(srcpth,dstpth,FALSE) :
                     d_dofcopy(srcpth, dstpth, pf->f_time, pf->f_date, pf->f_attr);
-            restore_path(ptmpdst);  /* restore original dest path */
+            set_all_files(ptmpdst); /* restore original dest path */
             /* if moving, delete original only if copy was ok */
             if ((op == OP_MOVE) && (more > 0))
                 more = d_dofdel(srcpth);
             break;
         }
         if (op != OP_COUNT)
-            restore_path(ptmpsrc);  /* restore original source path */
+            set_all_files(ptmpsrc); /* restore original source path */
 
         if (tree)
         {
@@ -1055,7 +1046,11 @@ WORD dir_op(WORD op, WORD icontype, PNODE *pspath, char *pdst_path, DIRCOUNT *co
     }
 
     if (tree)
+    {
+        tree[CDOK].ob_state = NORMAL;       /* reset button states for next time */
+        tree[CDCNCL].ob_state = NORMAL;
         end_dialog(tree);
+    }
     desk_busy_off();
 
     return more;

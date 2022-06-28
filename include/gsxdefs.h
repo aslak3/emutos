@@ -2,7 +2,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*       Copyright (C) 2002-2019 The EmuTOS development team
+*       Copyright (C) 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -76,34 +76,22 @@ typedef struct fdbstr
 } FDB;
 
 
-typedef struct mform
-{
-        WORD    mf_xhot;
-        WORD    mf_yhot;
-        WORD    mf_nplanes;
-        WORD    mf_bg;          /* mask colour index */
-        WORD    mf_fg;          /* data colour index */
-        UWORD   mf_mask[16];
-        UWORD   mf_data[16];
-} MFORM;
+extern WORD     gl_width;       /* screen width */
+extern WORD     gl_height;      /* screen height */
 
-extern WORD     gl_width;
-extern WORD     gl_height;
+extern WORD     gl_wchar;       /* width of character cell (normal font) */
+extern WORD     gl_hchar;       /* height of character cell (normal font) */
 
-extern WORD     gl_wchar;
-extern WORD     gl_hchar;
+extern WORD     gl_wschar;      /* width of character cell (small font) */
+extern WORD     gl_hschar;      /* height of character cell (small font) */
 
-extern WORD     gl_wschar;
-extern WORD     gl_hschar;
+extern WORD     gl_wbox;        /* box width */
+extern WORD     gl_hbox;        /* box height */
 
-extern WORD     gl_wbox;
-extern WORD     gl_hbox;
+extern GRECT    gl_clip;        /* global clipping rectangle */
 
-extern WORD     gl_wclip;
-extern WORD     gl_hclip;
-
-extern WORD     gl_nplanes;
-extern WORD     gl_handle;
+extern WORD     gl_nplanes;     /* number of bit planes */
+extern WORD     gl_handle;      /* physical workstation handle */
 
 extern FDB      gl_src;
 extern FDB      gl_dst;
@@ -113,10 +101,10 @@ extern WORD     contrl[12];
 extern WORD     intin[128];
 extern WORD     ptsin[20];
 
-extern GRECT    gl_rscreen;
-extern GRECT    gl_rfull;
-extern GRECT    gl_rzero;
-extern GRECT    gl_rcenter;
-extern GRECT    gl_rmenu;
+extern GRECT    gl_rscreen;     /* the entire screen */
+extern GRECT    gl_rfull;       /* the screen except the menu bar */
+extern GRECT    gl_rzero;       /* 0,0,0,0 */
+extern GRECT    gl_rcenter;     /* a box centered in the 'gl_rfull' area */
+extern GRECT    gl_rmenu;       /* the menu bar */
 
 #endif

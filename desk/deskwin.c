@@ -4,7 +4,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2019 The EmuTOS development team
+*                 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -90,11 +90,10 @@ void win_view(void)
     G.g_ihspc = G.g_ihext + G.g_ihint;
 #if CONF_WITH_SIZE_TO_FIT
     {
-    WORD width, dummy;
+    GRECT t;
 
-    wind_calc(1, WINDOW_STYLE, G.g_xdesk, G.g_ydesk, G.g_wdesk, G.g_hdesk,
-                &dummy, &dummy, &width, &dummy);
-    G.g_icols = max(1, width / G.g_iwspc);
+    wind_calc_grect(1, WINDOW_STYLE, &G.g_desk, &t);
+    G.g_icols = max(1, t.g_w / G.g_iwspc);
     }
 #endif
 }
@@ -147,7 +146,7 @@ void win_free(WNODE *thewin)
     G.g_wcnt--;
     thewin->w_id = 0;
     objc_order(G.g_screen, thewin->w_root, 1);
-    obj_wfree( thewin->w_root, 0, 0, 0, 0 );
+    obj_wfree(thewin->w_root, 0, 0, 0, 0);
 }
 
 
@@ -171,16 +170,15 @@ WNODE *win_alloc(WORD obid)
         G.g_wcnt++;
         pw = &G.g_wlist[wob-2];
         pw->w_flags = 0x0;
-        pw->w_obid = obid;    /* if -ve, the complement of the drive letter */
+        pw->w_obid = obid;  /* if -ve, the complement of the drive letter */
         pw->w_root = wob;
         pw->w_cvcol = 0;
         pw->w_cvrow = 0x0;
-        pw->w_pncol = (pt->g_w  - gl_wchar) / G.g_iwspc;
+        pw->w_pncol = (pt->g_w - gl_wchar) / G.g_iwspc;
         pw->w_pnrow = (pt->g_h - gl_hchar) / G.g_ihspc;
         pw->w_vncol = 0;
         pw->w_vnrow = 0x0;
-        pw->w_id = wind_create(WINDOW_STYLE, G.g_xdesk, G.g_ydesk,
-                                 G.g_wdesk, G.g_hdesk);
+        pw->w_id = wind_create_grect(WINDOW_STYLE, &G.g_desk);
         if (pw->w_id != -1)
         {
             return pw;
@@ -201,7 +199,7 @@ WNODE *win_find(WORD wh)
 {
     WNODE *pw;
 
-    if (wh == 0)            /* the desktop */
+    if (wh == DESKWH)       /* the desktop */
         return &G.g_wdesktop;
 
     for (pw = G.g_wfirst; pw; pw = pw->w_next)
@@ -391,7 +389,7 @@ static void win_icalc(FNODE *pfnode, WNODE *pwin)
  *  viewable in a window.  Next adjust root of tree to take into
  *  account the current view of the window.
  */
-void win_bldview(WNODE *pwin, WORD x, WORD y, WORD w, WORD h)
+void win_bldview(WNODE *pwin, GRECT *r)
 {
     FNODE *pstart;
     ANODE *anode;
@@ -400,8 +398,11 @@ void win_bldview(WNODE *pwin, WORD x, WORD y, WORD w, WORD h)
     WORD  o_wfit, o_hfit;       /* object grid */
     WORD  i_index;
     WORD  xoff, yoff, wh, sl_size, sl_value;
+    WORD  x, y, w, h;
 
     MAYBE_UNUSED(skipcnt);
+
+    r_get(r, &x, &y, &w, &h);
 
     /* free all this window's kids and set size */
     obj_wfree(pwin->w_root, x, y, w, h);
@@ -571,7 +572,7 @@ static void win_blt(WNODE *pw, BOOL horizontal, WORD newcv)
     }
 
     wind_get_grect(pw->w_id, WF_WXYWH, &c);
-    win_bldview(pw, c.g_x, c.g_y, c.g_w, c.g_h);
+    win_bldview(pw, &c);
 
     /* see if any part is off the screen */
     wind_get_grect(pw->w_id, WF_FIRSTXYWH, &t);
@@ -611,8 +612,7 @@ static void win_blt(WNODE *pw, BOOL horizontal, WORD newcv)
                 dy = tmp;
             }
             gsx_sclip(&c);
-            bb_screen(S_ONLY, sx+c.g_x, sy+c.g_y, dx+c.g_x, dy+c.g_y,
-                        wblt, hblt);
+            bb_screen(sx+c.g_x, sy+c.g_y, dx+c.g_x, dy+c.g_y, wblt, hblt);
 #if CONF_WITH_SIZE_TO_FIT
             if (horizontal)
             {
@@ -667,7 +667,7 @@ void win_dispfile(WNODE *pw, WORD file)
 #endif
 
     wind_get_grect(pw->w_id, WF_WXYWH, &gr);
-    win_bldview(pw, gr.g_x, gr.g_y, gr.g_w, gr.g_h);
+    win_bldview(pw, &gr);
     do_wredraw(pw->w_id, &gr);
 }
 #endif
@@ -791,7 +791,7 @@ void win_bdall(void)
         if (pw->w_id != 0)
         {
             wind_get_grect(pw->w_id, WF_WXYWH, &clip);
-            win_bldview(pw, clip.g_x, clip.g_y, clip.g_w, clip.g_h);
+            win_bldview(pw, &clip);
         }
     }
 }
@@ -808,7 +808,7 @@ void win_shwall(void)
 
     for (pw = G.g_wfirst; pw; pw = pw->w_next)
     {
-        if ((wh=pw->w_id) != 0)     /* yes, assignment! */
+        if ((wh=pw->w_id) != DESKWH)    /* yes, assignment! */
         {
             wind_get_grect(wh, WF_WXYWH, &clip);
             fun_msg(WM_REDRAW, wh, clip.g_x, clip.g_y, clip.g_w, clip.g_h);
@@ -829,7 +829,7 @@ WORD win_isel(OBJECT olist[], WORD root, WORD curr)
 
     while(curr > root)
     {
-        if ( olist[curr].ob_state & SELECTED )
+        if (olist[curr].ob_state & SELECTED)
             return curr;
         curr = olist[curr].ob_next;
     }

@@ -1,7 +1,7 @@
 /*
  * memory.S - memory initialization
  *
- * Copyright (C) 2001-2019 by Authors:
+ * Copyright (C) 2001-2021 by Authors:
  *
  * Authors:
  *  MAD  Martin Doering
@@ -503,7 +503,7 @@ mem_sanity_loop:
         move.l  d0,(a0)                 // Write to memory
         cmp.l   (a0),d0                 // Was memory really writable?
         jeq     mem_sanity_done
-        lsr.l   #1,d5                   // Decrease memory size
+        sub.l   #512*1024,d5            // Decrease memory size
         jra     mem_sanity_loop
 mem_sanity_done:
         jra     memconf_done
@@ -713,5 +713,78 @@ sync_data_cache:
         addq.l  #8,sp
 
         rts
+
+#endif
+
+#if CONF_WITH_MEMORY_TEST
+
+// ===========================================================================
+// ==== utility functions for memory test ====================================
+// ===========================================================================
+
+        .globl  _memtest_verify
+        .globl  _memtest_rotate_verify
+
+//
+// BOOL memtest_verify(ULONG *start, ULONG value, LONG length)
+//
+_memtest_verify:
+        movea.l 4(sp),a0                // a0-> start
+        move.l  8(sp),d0                // d0 = value to check
+        move.l  12(sp),d1               // d1 = length (bytes)
+        lsr.l   #2,d1                   // d1 = length (longs)
+        subq.l  #1,d1                   // for dbne
+vloop:
+        cmp.l   (a0)+,d0                // ok?
+#ifdef __mcoldfire__
+        jne     verror                  // no, branch to error
+        subq.l  #1,d1
+        jpl     vloop
+#else
+        dbne    d1,vloop
+        jne     verror
+        subi.l  #0x10000,d1             // handle long value for count
+        jhi     vloop
+#endif
+        moveq   #1,d0                   // all ok, return TRUE
+        rts
+verror:
+        moveq   #0,d0                   // error, return FALSE
+        rts
+
+//
+// BOOL memtest_rotate_verify(ULONG *start, LONG length)
+//
+_memtest_rotate_verify:
+        movea.l 4(sp),a0                // a0-> start
+        moveq.l #1,d0                   // d0 = value to store
+        move.l  8(sp),d1                // d1 = length (bytes)
+        lsr.l   #2,d1                   // d1 = length (longs)
+        subq.l  #1,d1                   // for dbne
+rloop:
+#ifdef __mcoldfire__
+        lsl.l   #1,d0                   // rotate bit
+        jcc     rnocarry
+        moveq   #1,d0
+rnocarry:
+#else
+        rol.l   #1,d0
+#endif
+        cmp.l   (a0)+,d0                // store
+#ifdef __mcoldfire__
+        jne     rerror
+        subq.l  #1,d1
+        jpl     rloop
+#else
+        dbne    d1,rloop
+        jne     rerror
+        subi.l  #0x10000,d1             // handle long value for count
+        jhi     rloop
+#endif
+        moveq   #1,d0                   // all ok, return TRUE
+        rts
+rerror:
+        moveq   #0,d0                   // error, return FALSE
+        rts        
 
 #endif

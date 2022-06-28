@@ -2,7 +2,7 @@
  * vdi_defs.h - Definitions for virtual workstations
  *
  * Copyright 1999 by Caldera, Inc.
- * Copyright 2005-2019 The EmuTOS development team.
+ * Copyright 2005-2021 The EmuTOS development team.
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -15,7 +15,26 @@
 #include "aesext.h"
 #include "vdiext.h"
 
-#define HAVE_BEZIER 0           /* switch on bezier capability */
+#define HAVE_BEZIER 0           /* switch on bezier capability - entirely untested */
+
+#define EXTENDED_PALETTE (CONF_WITH_VIDEL || CONF_WITH_TT_SHIFTER)
+
+#if CONF_WITH_VIDEL
+# define UDPAT_PLANES   32      /* actually 16, but each plane occupies 2 WORDs */
+#elif CONF_WITH_TT_SHIFTER
+# define UDPAT_PLANES   8
+#else
+# define UDPAT_PLANES   4
+#endif
+
+/*
+ * some VDI opcodes
+ */
+#define V_OPNWK_OP      1
+#define V_CLSWK_OP      2
+#define V_OPNVWK_OP     100
+#define V_CLSVWK_OP     101
+
 
 /*
  * some minima and maxima
@@ -92,7 +111,7 @@
 #define SUBROUTINE  5
 #define VDI_HANDLE  6
 
-/* text style bits: for vwk->style (and also lineA variable STYLE) */
+/* text style bits: for vwk->style (and also line-A variable STYLE) */
 #define F_THICKEN   1
 #define F_LIGHT     2
 #define F_SKEW      4
@@ -173,7 +192,7 @@ struct Vwk_ {
     Fonthead scratch_head;      /* Holder for the doubled font data */
     WORD text_color;            /* Current text color (PEL value)   */
     WORD ud_ls;                 /* User defined linestyle       */
-    WORD ud_patrn[4 * 16];      /* User defined pattern         */
+    WORD ud_patrn[UDPAT_PLANES*16]; /* User defined pattern             */
     WORD v_align;               /* Current text vertical alignment  */
     WORD wrt_mode;              /* Current writing mode         */
     WORD xfm_mode;              /* Transformation mode requested (NDC) */
@@ -182,7 +201,9 @@ struct Vwk_ {
     WORD ymn_clip;              /* Low y point of clipping rectangle    */
     WORD ymx_clip;              /* High y point of clipping rectangle   */
     /* newly added */
+#if HAVE_BEZIER
     WORD bez_qual;              /* actual quality for bezier curves */
+#endif
 };
 
 /*
@@ -244,7 +265,7 @@ extern WORD HIDE_CNT;           /* Number of levels the mouse is hidden */
 extern WORD     newx;           /* new mouse x&y position */
 extern WORD     newy;           /* new mouse x&y position */
 extern UBYTE    draw_flag;      /* non-zero means draw mouse form on vblank */
-extern UBYTE    mouse_flag;     /* non-zero, if mouse ints disabled */
+extern UBYTE    mouse_flag;     /* non-zero while mouse cursor is being modified */
 extern UBYTE    cur_ms_stat;    /* current mouse status */
 
 
@@ -272,7 +293,7 @@ void wideline(Vwk *vwk, Point *point, int count);
 /* common drawing function */
 void Vwk2Attrib(const Vwk *vwk, VwkAttrib *attr, const UWORD color);
 void draw_rect_common(const VwkAttrib *attr, const Rect *rect);
-void clc_flit (const VwkAttrib *attr, const VwkClip *clipper, const Point *point, WORD y, int vectors);
+void clc_flit(const VwkAttrib *attr, const VwkClip *clipper, const Point *point, WORD vectors, WORD start, WORD end);
 void abline (const Line *line, const WORD wrt_mode, UWORD color);
 void contourfill(const VwkAttrib *attr, const VwkClip *clip);
 
@@ -384,10 +405,12 @@ void vdi_vex_wheelv(Vwk *);         /* 134 */
 void direct_screen_blit(WORD count, WORD *str);
 #endif
 
+#if HAVE_BEZIER
 /* not in original TOS */
 void v_bez_qual(Vwk *);
 void v_bez_control(Vwk *);
 void v_bez(Vwk *vwk, Point *points, int count);
 void v_bez_fill(Vwk *vwk, Point *points, int count);
+#endif
 
 #endif                          /* VDIDEF_H */

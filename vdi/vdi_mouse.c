@@ -3,7 +3,7 @@
  *
  * Copyright 1982 by Digital Research Inc.  All rights reserved.
  * Copyright 1999 by Caldera, Inc. and Authors:
- * Copyright 2002-2019 by The EmuTOS development team
+ * Copyright 2002-2021 by The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -14,7 +14,7 @@
 #include "biosbind.h"
 #include "xbiosbind.h"
 #include "obdefs.h"
-#include "gsxdefs.h"
+#include "aesdefs.h"
 #include "aesext.h"
 #include "vdi_defs.h"
 #include "vdistub.h"
@@ -37,7 +37,7 @@ struct Mcdb_ {
         UWORD   maskdata[32];   /* mask & data are interleaved */
 };
 
-/* mouse related linea variables in bios/lineavars.S */
+/* mouse related line-A variables in bios/lineavars.S */
 extern void     (*user_but)(void);      /* user button vector */
 extern void     (*user_cur)(void);      /* user cursor vector */
 extern void     (*user_mot)(void);      /* user motion vector */
@@ -121,16 +121,18 @@ static const MFORM arrow_mform = {
  */
 static void dis_cur(void)
 {
-    mouse_flag += 1;            /* disable mouse redrawing */
-    HIDE_CNT -= 1;              /* decrement hide operations counter */
-    if (HIDE_CNT == 0) {
-        cur_display(&mouse_cdb, mcs_ptr, GCURX, GCURY);  /* display the cursor */
-        draw_flag = 0;          /* disable VBL drawing routine */
+    if (HIDE_CNT != 1)      /* if not about to be shown: */
+    {
+        HIDE_CNT--;             /* just decrement hide count */
+        if (HIDE_CNT < 0)       /* but make sure it doesn't go negative! */
+            HIDE_CNT = 0;
+        return;
     }
-    else if (HIDE_CNT < 0) {
-        HIDE_CNT = 0;           /* hide counter should not become negative */
-    }
-    mouse_flag -= 1;            /* re-enable mouse drawing */
+
+    /* HIDE_CNT is precisely 1 at this point */
+    cur_display(&mouse_cdb, mcs_ptr, GCURX, GCURY);  /* display the cursor */
+    draw_flag = 0;              /* disable VBL drawing routine */
+    HIDE_CNT--;
 }
 
 
@@ -149,8 +151,6 @@ static void dis_cur(void)
  */
 static void hide_cur(void)
 {
-    mouse_flag += 1;            /* disable mouse redrawing */
-
     /*
      * Increment the counter for the number of hide operations performed.
      * If this is the first one then remove the cursor from the screen.
@@ -161,8 +161,6 @@ static void hide_cur(void)
         cur_replace(mcs_ptr);   /* remove the cursor from screen */
         draw_flag = 0;          /* disable VBL drawing routine */
     }
-
-    mouse_flag -= 1;            /* re-enable mouse drawing */
 }
 
 
@@ -246,7 +244,7 @@ static WORD gloc_key(void)
  *    positions are the current positions, and the terminating character
  *    is the ASCII key pressed, or 0x20 for the left mouse button / 0x21
  *    for the right.
- *    As a consequence, pressing the space key twice is indistingishable
+ *    As a consequence, pressing the space key twice is indistinguishable
  *    from pressing/releasing the left mouse button, and likewise for
  *    the exclamation mark and the right mouse button.
  *
@@ -262,7 +260,7 @@ static WORD gloc_key(void)
  *    . if a mouse button is pressed or released, the terminating
  *      character is 0x20 for the left button, 0x21 for the right
  *      button, and CONTRL[4] is set to 1
- *    . the output mouse psitions are always set to the same as the
+ *    . the output mouse positions are always set to the same as the
  *      input
  *
  * Differences from official Atari documentation
@@ -337,13 +335,15 @@ void vdi_v_hide_c(Vwk * vwk)
  */
 void vdi_vq_mouse(Vwk * vwk)
 {
+    WORD old_sr;
+
+    old_sr = set_sr(0x2700);    /* disable interrupts */
+
     INTOUT[0] = MOUSE_BT;
-
-    CONTRL[4] = 1;
-    CONTRL[2] = 1;
-
     PTSOUT[0] = GCURX;
     PTSOUT[1] = GCURY;
+
+    set_sr(old_sr);             /* enable interrupts */
 }
 
 
@@ -648,7 +648,8 @@ void vdimouse_exit(void)
  *         draw_flag - signals need to redraw cursor
  *         newx - new cursor x-coordinate
  *         newy - new cursor y-coordinate
- *         mouse_flag - cursor hide/show flag
+ *         mouse_flag - mouse cursor is being modified
+ *         HIDE_CNT - mouse cursor hide/show indicator
  *
  *      Outputs:
  *         draw_flag is cleared
@@ -661,17 +662,22 @@ void vdimouse_exit(void)
 
 static void vb_draw(void)
 {
-    WORD old_sr = set_sr(0x2700);       /* disable interrupts */
+    WORD old_sr, x, y;
+
+    /* if the cursor is being modified, or is hidden, just exit */
+    if (mouse_flag || HIDE_CNT)
+        return;
+
+    old_sr = set_sr(0x2700);        /* disable interrupts */
     if (draw_flag) {
         draw_flag = FALSE;
+        x = newx;                   /* get x/y for cur_display() atomically */
+        y = newy;
         set_sr(old_sr);
-        if (!mouse_flag) {
-            cur_replace(mcs_ptr);       /* remove the old cursor from the screen */
-            cur_display(&mouse_cdb, mcs_ptr, newx, newy);  /* display the cursor */
-        }
+        cur_replace(mcs_ptr);       /* remove the old cursor from the screen */
+        cur_display(&mouse_cdb, mcs_ptr, x, y); /* display the cursor */
     } else
         set_sr(old_sr);
-
 }
 
 

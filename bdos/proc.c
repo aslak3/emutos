@@ -2,7 +2,7 @@
  * proc.c - process management routines
  *
  * Copyright (C) 2001 Lineo, Inc. and Authors:
- *               2002-2019 The EmuTOS development team
+ *               2002-2020 The EmuTOS development team
  *
  *  KTB     Karl T. Braun (kral)
  *  MAD     Martin Doering
@@ -25,7 +25,6 @@
 #include "string.h"
 #include "biosext.h"
 #include "asm.h"
-#include "tosvars.h"
 #include "has.h"
 
 
@@ -64,7 +63,8 @@ static jmp_buf bakbuf;         /* longjmp buffer */
  * memory internal routines
  *
  * These violate the encapsulation of the memory internal structure.
- * Could perhaps better go in the memory part.
+ * Could perhaps better go into a memory module; however, moving them to
+ * e.g. iumem.c would cost about 40 bytes of ROM space in the 192K ROMs.
  */
 static void free_all_owned(PD *p, MPB *mpb);
 static void reserve_blocks(PD *pd, MPB *mpb);
@@ -111,10 +111,6 @@ static void ixterm(PD *r)
 {
     WORD h;
     WORD i;
-
-    /* call process termination vector (last chance for user cleanup) */
-
-    etv_term();
 
     /* check the standard devices in both file tables  */
 
@@ -264,13 +260,22 @@ long xexec(WORD flag, char *path, char *tail, char *env)
         return EFILNF;      /*  file not found      */
     }
 
+    /* attempt to open the file */
+    rc = xopen(path, 0);
+    if (rc < 0) {
+        KDEBUG(("BDOS xexec: cannot open %s\n",path));
+        return rc;
+    }
+    fh = (FH) rc;
+
     /* load the header - if I/O error occurs now, the longjmp in rwabs will
      * jump directly back to bdosmain.c, which is not a problem because
      * we haven't allocated anything yet.
      */
-    rc = kpgmhdrld(path, &hdr, &fh);
+    rc = kpgmhdrld(fh, &hdr);
     if (rc) {
         KDEBUG(("BDOS xexec: kpgmhdrld returned %ld (0x%lx)\n",rc,rc));
+        xclose(fh);
         return rc;
     }
 
@@ -278,6 +283,7 @@ long xexec(WORD flag, char *path, char *tail, char *env)
     env_ptr = alloc_env(hdr.h01_flags, env);
     if (env_ptr == NULL) {
         KDEBUG(("BDOS xexec: no memory for environment\n"));
+        xclose(fh);
         return ENSMEM;
     }
 
@@ -289,6 +295,7 @@ long xexec(WORD flag, char *path, char *tail, char *env)
     if (p == NULL) {
         KDEBUG(("BDOS xexec: no memory for TPA\n"));
         xmfree(env_ptr);
+        xclose(fh);
         return ENSMEM;
     }
 
@@ -314,9 +321,10 @@ long xexec(WORD flag, char *path, char *tail, char *env)
 
         KDEBUG(("Error and longjmp in xexec()!\n"));
 
-        /* free any memory allocated yet */
+        /* free any memory allocated so far & close the file */
         xmfree(cur_p->p_env);
         xmfree(cur_p);
+        xclose(fh);
 
         /* we still have to jump back to bdosmain.c so that the proper error
          * handling can occur.
@@ -324,7 +332,7 @@ long xexec(WORD flag, char *path, char *tail, char *env)
         longjmp(bakbuf, 1);
     }
 
-    /* now, load the rest of the program and perform relocation */
+    /* now, load the rest of the program, perform relocation, close the file */
     rc = kpgmld(cur_p, fh, &hdr);
     if (rc) {
         KDEBUG(("BDOS xexec: kpgmld returned %ld (0x%lx)\n",rc,rc));
@@ -585,16 +593,18 @@ void x0term(void)
 /*
  * xterm - (Pterm) terminate current process
  *
- * terminate the current process and transfer control to the colling
+ * terminate the current process and transfer control to the calling
  * process.  All files opened by the terminating process are closed.
  *
  * Function 0x4C        p_term
  */
 void xterm(UWORD rc)
 {
+    PFVOID userterm;
     PD *p = run;
 
-    (* (WORD(*)(void)) Setexc(0x102, (long)-1L))(); /*  call user term handler */
+    userterm = (PFVOID)Setexc(0x102, (long)-1L);  /* get user term handler address */
+    protect_v((PFLONG)userterm);    /* call it, protecting d2/a2 from modification */
 
     run = run->p_parent;
     ixterm(p);

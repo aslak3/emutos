@@ -3,7 +3,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2019 The EmuTOS development team
+*                 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -67,7 +67,7 @@ static WORD sob_malloc(void)
      * for the scroll-bar width, and gl_hchar as a proxy for the title
      * bar/info line height.  Rounding down takes care of the rest :-).
      */
-    num_obs = (NUM_WNODES+1) * ((G.g_wdesk-gl_wchar)/G.g_iwspc) * ((G.g_hdesk-gl_hchar)/G.g_ihspc);
+    num_obs = (NUM_WNODES+1) * ((G.g_desk.g_w-gl_wchar)/G.g_iwspc) * ((G.g_desk.g_h-gl_hchar)/G.g_ihspc);
 
     /* In case we're memory-constrained, we limit ourselves to 5% of
      * available memory, or MIN_WOBS, whichever is greater.  In practice,

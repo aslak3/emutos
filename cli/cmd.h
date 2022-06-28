@@ -1,7 +1,7 @@
 /*
  * EmuCON2 header
  *
- * Copyright (C) 2013-2019 The EmuTOS development team
+ * Copyright (C) 2013-2021 The EmuTOS development team
  *
  * Authors:
  *  RFB    Roger Burrows
@@ -19,6 +19,9 @@
  #define CONF_WITH_TT_SHIFTER   1
  #define MAXPATHLEN      256
  #define BLKDEVNUM       26
+ /* sysconf.h */
+ #define DRIVESEP       ':'
+ #define PATHSEP        '\\'
  /* nls.h */
  #define _(a) a
  #define N_(a) a
@@ -131,6 +134,7 @@ extern LONG jmp_xbios(WORD, ...);
 #define TT_MEDIUM       4
 #define TT_HIGH         6
 #define TT_LOW          7
+#define BLACK           0x0000          /* for Setcolor() */
 
 /*
  *  typedefs
@@ -205,6 +209,7 @@ extern WORD nflops_copy;
 extern DTA *dta;
 extern LONG redir_handle;
 extern char user_path[MAXPATHLEN];     /* from PATH command */
+extern char *environment;              /* from cmdasm.S */
 
 /*
  *  function prototypes

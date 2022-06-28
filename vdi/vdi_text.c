@@ -3,7 +3,7 @@
  *
  * Copyright 1982 by Digital Research Inc.  All rights reserved.
  * Copyright 1999 by Caldera, Inc. and Authors:
- * Copyright 2002-2019 The EmuTOS development team
+ * Copyright 2002-2021 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -290,8 +290,6 @@ static void output_text(Vwk *vwk, WORD count, WORD *str, WORD width, JUSTINFO *j
     WORD temp;
     const Fonthead *fnt_ptr;
     Point * point;
-
-    CONTRL[2] = 0;      /* # points in PTSOUT */
 
     if (count <= 0)     /* quick out for unlikely occurrence */
         return;
@@ -664,8 +662,6 @@ static void setup_width_height(const Fonthead *font)
     WORD *p;
     UWORD top;
 
-    CONTRL[2] = 2;      /* # points in PTSOUT */
-
     p = PTSOUT;
     *p++ = font->max_char_width;
     *p++ = top = font->top;
@@ -680,7 +676,7 @@ void vdi_vst_height(Vwk * vwk)
     const Fonthead *test_font, *single_font;
     WORD font_id;
     UWORD test_height;
-    char found;
+    BOOL found;
 
     font_id = vwk->cur_font->font_id;
     vwk->pts_mode = FALSE;
@@ -688,10 +684,11 @@ void vdi_vst_height(Vwk * vwk)
     /* Find the smallest font in the requested face */
     chain_ptr = font_ring;
 
-    found = 0;
+    found = FALSE;
     while (!found && (test_font = *chain_ptr++)) {
         do {
-            found = (test_font->font_id == font_id);
+            if (test_font->font_id == font_id)
+                found = TRUE;
         } while (!found && (test_font = test_font->next_font));
     }
 
@@ -818,17 +815,18 @@ void vdi_vst_point(Vwk * vwk)
     const Fonthead **chain_ptr, *double_font;
     const Fonthead *test_font, *single_font;
     WORD test_height, h;
-    char found;
+    BOOL found;
 
     font_id = vwk->cur_font->font_id;
     vwk->pts_mode = TRUE;
 
     /* Find the smallest font in the requested face */
     chain_ptr = font_ring;
-    found = 0;
+    found = FALSE;
     while (!found && (test_font = *chain_ptr++)) {
         do {
-            found = (test_font->font_id == font_id);
+            if (test_font->font_id == font_id)
+                found = TRUE;
         } while (!found && (test_font = test_font->next_font));
     }
 
@@ -867,7 +865,7 @@ void vdi_vst_point(Vwk * vwk)
 
     setup_width_height(single_font);    /* set up return values */
 
-    CONTRL[4] = 1;          /* also return point size actually set */
+    /* also return point size actually set */
     INTOUT[0] = single_font->point;
 }
 
@@ -875,7 +873,6 @@ void vdi_vst_point(Vwk * vwk)
 void vdi_vst_effects(Vwk * vwk)
 {
     INTOUT[0] = vwk->style = INTIN[0] & INQ_TAB[2];
-    CONTRL[4] = 1;
 }
 
 
@@ -894,8 +891,6 @@ void vdi_vst_alignment(Vwk * vwk)
     if (a < 0 || a > 5)
         a = 0;
     vwk->v_align = *int_out = a;
-
-    CONTRL[4] = 2;
 }
 
 
@@ -930,7 +925,6 @@ void vdi_vst_rotation(Vwk * vwk)
 
     /* this sets a value of 0, 900, 1800, 2700 or 3600, just like TOS3/TOS4 */
     INTOUT[0] = vwk->chup = ((angle + 450) / 900) * 900;
-    CONTRL[4] = 1;
 }
 
 
@@ -939,7 +933,7 @@ void vdi_vst_font(Vwk * vwk)
     WORD *old_intin, point, *old_ptsout, dummy[4], *old_ptsin;
     WORD face;
     const Fonthead *test_font, **chain_ptr;
-    char found;
+    BOOL found;
 
     test_font = vwk->cur_font;
     point = test_font->point;
@@ -948,10 +942,11 @@ void vdi_vst_font(Vwk * vwk)
 
     chain_ptr = font_ring;
 
-    found = 0;
+    found = FALSE;
     while (!found && (test_font = *chain_ptr++)) {
         do {
-            found = (test_font->font_id == face);
+            if (test_font->font_id == face)
+                found = TRUE;
         } while (!found && (test_font = test_font->next_font));
     }
 
@@ -978,8 +973,6 @@ void vdi_vst_font(Vwk * vwk)
     PTSIN = old_ptsin;
     PTSOUT = old_ptsout;
 
-    CONTRL[2] = 0;
-    CONTRL[4] = 1;
     INTOUT[0] = vwk->cur_font->font_id;
 }
 
@@ -990,7 +983,6 @@ void vdi_vst_color(Vwk * vwk)
 
     r = validate_color_index(INTIN[0]);
 
-    CONTRL[4] = 1;
     INTOUT[0] = r;
     vwk->text_color = MAP_COL[r];
 }
@@ -1017,8 +1009,6 @@ void vdi_vqt_attributes(Vwk * vwk)
     *pointer++ = fnt_ptr->max_cell_width;
     *pointer = fnt_ptr->top + fnt_ptr->bottom + 1;  /* handles scaled fonts */
 
-    CONTRL[2] = 2;
-    CONTRL[4] = 6;
     flip_y = 1;
 }
 
@@ -1029,8 +1019,6 @@ void vdi_vqt_extent(Vwk * vwk)
 
     height = calc_height(vwk);
     width = calc_width(vwk, CONTRL[3], INTIN);
-
-    CONTRL[2] = 4;
 
     bzero(PTSOUT,8*sizeof(WORD));
     switch (vwk->chup) {
@@ -1096,8 +1084,6 @@ void vdi_vqt_width(Vwk * vwk)
         }
     }
 
-    CONTRL[2] = 3;
-    CONTRL[4] = 1;
     flip_y = 1;
 }
 
@@ -1105,23 +1091,25 @@ void vdi_vqt_width(Vwk * vwk)
 
 void vdi_vqt_name(Vwk * vwk)
 {
-    WORD i, element;
+    WORD i, element, current_font_id;
     const char *name;
     WORD *int_out;
-    const Fonthead *tmp_font;
-    char found;
-
-    const Fonthead **chain_ptr;
+    const Fonthead *tmp_font, **chain_ptr;
+    BOOL found;
 
     element = INTIN[0];
     chain_ptr = font_ring;
     i = 0;
+    current_font_id = -1;
 
-    found = 0;
+    found = FALSE;
     while (!found && (tmp_font = *chain_ptr++)) {
         do {
-            if ((++i) == element)
-                found = 1;
+            if (tmp_font->font_id != current_font_id) {
+                current_font_id = tmp_font->font_id;    /* remember current id */
+                if ((++i) == element)
+                    found = TRUE;
+            }
         } while (!found && (tmp_font = tmp_font->next_font));
     }
 
@@ -1131,13 +1119,10 @@ void vdi_vqt_name(Vwk * vwk)
 
     int_out = INTOUT;
     *int_out++ = tmp_font->font_id;
-    for (i = 1, name = tmp_font->name; (*int_out++ = *name++); i++);
-    while (i < 33) {
+    for (i = 0, name = tmp_font->name; (*int_out++ = *name++); i++)
+        ;
+    while (i++ < FONT_NAME_LEN)
         *int_out++ = 0;
-        i++;
-    }
-    CONTRL[4] = 33;
-
 }
 
 
@@ -1177,8 +1162,6 @@ void vdi_vqt_fontinfo(Vwk * vwk)
     *pointer++ = 0;
     *pointer = fnt_ptr->top;
 
-    CONTRL[2] = 5;
-    CONTRL[4] = 2;
     flip_y = 1;
 }
 
@@ -1307,7 +1290,6 @@ void vdi_vst_load_fonts(Vwk * vwk)
 
     /* Init some common variables */
     control = CONTRL;
-    control[4] = 1;
 
     /* You only get one chance to load fonts.  If fonts are linked in, exit  */
     if (vwk->loaded_fonts) {
@@ -1353,7 +1335,6 @@ void vdi_vst_load_fonts(Vwk * vwk)
     vwk->num_fonts += count;
     INTOUT[0] = count;
 #else
-    CONTRL[4] = 1;
     INTOUT[0] = 0;      /* we loaded no new fonts */
 #endif
 }

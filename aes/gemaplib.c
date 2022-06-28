@@ -3,7 +3,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2019 The EmuTOS development team
+*                 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -151,7 +151,11 @@ void ap_tplay(const EVNTREC *pbuff,WORD length,WORD scale)
         }
 
         if (f.f_code)   /* if valid, add to queue */
+        {
+            disable_interrupts();
             forkq(f.f_code,f.f_data);
+            enable_interrupts();
+        }
 
         dsptch();       /* let someone run */
     }
@@ -240,7 +244,7 @@ WORD ap_trecd(EVNTREC *pbuff,WORD length)
 void ap_exit(void)
 {
     wm_update(BEG_UPDATE);
-    mn_clsda();
+    mn_cleanup();
     wait_for_accs(AP_ACCLOSE);  /* block until all DAs have seen AC_CLOSE */
     if (rlr->p_qindex)
         ap_rdwr(MU_MESAG, rlr, rlr->p_qindex, (WORD *)D.g_valstr);

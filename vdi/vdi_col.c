@@ -1,7 +1,7 @@
 /*
  * vdi_col.c - VDI color palette functions and tables.
  *
- * Copyright (C) 2005-2019 The EmuTOS development team
+ * Copyright (C) 2005-2021 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -15,8 +15,6 @@
 #include "xbiosbind.h"
 #include "lineavars.h"
 
-#define EXTENDED_PALETTE (CONF_WITH_VIDEL || CONF_WITH_TT_SHIFTER)
-
 #if EXTENDED_PALETTE
 #define MAXCOLOURS  256
 #else
@@ -24,7 +22,7 @@
 #endif
 
 /*
- * the following lineA variables contain the VDI color palette entries.
+ * the following line-A variables contain the VDI color palette entries.
  * REQ_COL contains the first 16 entries; req_col2 contains entries
  * 16-255 (only applicable for 8-plane resolutions).  Note that the
  * location of req_col2 is not documented by Atari, but is derived from
@@ -538,7 +536,10 @@ static WORD adjust_mono_values(WORD colnum,WORD *rgb)
 static void set_color(WORD colnum, WORD *rgb)
 {
     WORD r, g, b;
-    WORD hwreg = MAP_COL[colnum];   /* get hardware register */
+    WORD hwreg;
+
+    /* get hardware register, clamped according to number of planes */
+    hwreg = MAP_COL[colnum] & (numcolors-1);
 
     r = rgb[0];
     g = rgb[1];
@@ -668,7 +669,7 @@ void init_colors(void)
 
     /* set up vdi pen -> hardware colour register mapping */
     memcpy(MAP_COL, MAP_COL_ROM, sizeof(MAP_COL_ROM));
-    MAP_COL[1] = numcolors - 1; /* pen 1 varies according to # colours available */
+    MAP_COL[1] = MAXCOLOURS - 1;
 
 #if EXTENDED_PALETTE
     for (i = 16; i < MAXCOLOURS-1; i++)
@@ -677,7 +678,7 @@ void init_colors(void)
 #endif
 
     /* set up reverse mapping (hardware colour register -> vdi pen) */
-    for (i = 0; i < numcolors; i++)
+    for (i = 0; i < MAXCOLOURS; i++)
         REV_MAP_COL[MAP_COL[i]] = i;
 
     /* now initialise the hardware */
@@ -743,7 +744,6 @@ void vdi_vq_color(Vwk *vwk)
     colnum = INTIN[0];
 
     INTOUT[1] = INTOUT[2] = INTOUT[3] = 0;  /* Default values */
-    CONTRL[4] = 4;
 
     /* Check for valid color index */
     if (colnum < 0 || colnum >= numcolors)
@@ -782,7 +782,7 @@ void vdi_vq_color(Vwk *vwk)
      * return actual current value
      */
     colnum = INTIN[0];          /* may have been munged on TT system, see above */
-    hwreg = MAP_COL[colnum];    /* get hardware register */
+    hwreg = MAP_COL[colnum] & (numcolors-1);    /* get hardware register */
 
 #if CONF_WITH_VIDEL
     if (has_videl)

@@ -2,7 +2,7 @@
  * mfp.c - handling of the Multi-Function Peripheral MFP 68901
  *
  * Copyright (C) 2001 Martin Doering
- * Copyright (C) 2001-2019 The EmuTOS development team
+ * Copyright (C) 2001-2021 The EmuTOS development team
  *
  * Authors:
  *  LVL   Laurent Vogel
@@ -13,40 +13,63 @@
  */
 
 #include "emutos.h"
+#include "string.h"
 #include "mfp.h"
 #include "tosvars.h"
 #include "vectors.h"
 #include "coldfire.h"
+#include "lisa.h"
 
 #if CONF_WITH_MFP || CONF_WITH_TT_MFP
 
 static void reset_mfp_regs(MFP *mfp)
 {
-    mfp->gpip = 0x00;
-    mfp->aer = 0x00;
-    mfp->ddr = 0x00;
+    volatile UBYTE *p;
+    /*
+     * The following writes zeroes to everything except the UDR (anything
+     * written to the UDR would be sent as soon as the baud rate clock
+     * (Timer D) was enabled).  We avoid writing to the even addresses,
+     * because some buggy emulators (I'm looking at you, STonXDOS)
+     * generate bus errors there.
+     */
+    for (p = &mfp->gpip; p <= &mfp->tsr; p += 2)
+        *p = 0;
+}
 
-    mfp->iera = 0x00;
-    mfp->ierb = 0x00;
-    mfp->ipra = 0x00;
-    mfp->iprb = 0x00;
-    mfp->isra = 0x00;
-    mfp->isrb = 0x00;
-    mfp->imra = 0x00;
-    mfp->imrb = 0x00;
-    mfp->vr = 0x00;
+static void disable_mfp_interrupt(MFP *mfp, WORD num)
+{
+    UBYTE mask;
 
-    mfp->tacr = 0x00;
-    mfp->tbcr = 0x00;
-    mfp->tcdcr = 0x00;
+    num &= 0x0F;
+    if (num >= 8) {
+        mask = ~(1<<(num-8));
+        mfp->imra &= mask;
+        mfp->iera &= mask;
+        mfp->ipra = mask;   /* note: IPRA/ISRA ignore '1' bits */
+        mfp->isra = mask;
+    } else {
+        mask = ~(1<<num);
+        mfp->imrb &= mask;
+        mfp->ierb &= mask;
+        mfp->iprb = mask;   /* note: IPRB/ISRB ignore '1' bits */
+        mfp->isrb = mask;
+    }
+}
 
-    mfp->tadr = 0x00;
-    mfp->tbdr = 0x00;
-    mfp->tcdr = 0x00;
-    mfp->tddr = 0x00;
+static void enable_mfp_interrupt(MFP *mfp, WORD num)
+{
+    UBYTE mask;
 
-    mfp->rsr = 0x00;
-    mfp->tsr = 0x00;
+    num &= 0x0F;
+    if (num >= 8) {
+        mask = 1 << (num - 8);
+        mfp->iera |= mask;
+        mfp->imra |= mask;
+    } else {
+        mask = 1 << num;
+        mfp->ierb |= mask;
+        mfp->imrb |= mask;
+    }
 }
 
 #endif
@@ -60,6 +83,14 @@ void tt_mfp_init(void)
 
     reset_mfp_regs(mfp);    /* reset the MFP registers */
     mfp->vr = 0x58;         /* vectors 0x50 to 0x5F, software end of interrupt */
+}
+
+void tt_mfpint(WORD num, LONG vector)
+{
+    num &= 0x0F;
+    disable_mfp_interrupt(TT_MFP_BASE, num);
+    *(LONG *)((0x50L + num)*4) = vector;
+    enable_mfp_interrupt(TT_MFP_BASE, num);
 }
 
 #endif
@@ -90,40 +121,12 @@ void mfpint(WORD num, LONG vector)
 
 void jdisint(WORD num)
 {
-    MFP *mfp=MFP_BASE;   /* set base address of MFP */
-    UBYTE i;
-
-    num &= 0x0F;
-    if(num >= 8) {
-        i = 1 << (num - 8);
-        mfp->imra &= ~i;
-        mfp->iera &= ~i;
-        mfp->ipra &= ~i;
-        mfp->isra &= ~i;
-    } else {
-        i = 1 << num;
-        mfp->imrb &= ~i;
-        mfp->ierb &= ~i;
-        mfp->iprb &= ~i;
-        mfp->isrb &= ~i;
-    }
+    disable_mfp_interrupt(MFP_BASE, num);
 }
 
 void jenabint(WORD num)
 {
-    MFP *mfp=MFP_BASE;   /* set base address of MFP */
-    UBYTE i;
-
-    num &= 0x0F;
-    if(num >= 8) {
-        i = 1 << (num - 8);
-        mfp->iera |= i;
-        mfp->imra |= i;
-    } else {
-        i = 1 << num;
-        mfp->ierb |= i;
-        mfp->imrb |= i;
-    }
+    enable_mfp_interrupt(MFP_BASE, num);
 }
 
 /* setup the timer, but do not activate the interrupt */
@@ -155,7 +158,7 @@ void setup_timer(MFP *mfp, WORD timer, WORD control, WORD data)
     }
 }
 
-static const WORD timer_num[] = { 13, 8, 5, 4 };
+static const WORD timer_num[] = { MFP_TIMERA, MFP_TIMERB, MFP_200HZ, MFP_TIMERD };
 
 void xbtimer(WORD timer, WORD control, WORD data, LONG vector)
 {
@@ -181,12 +184,15 @@ int timeout_gpip(LONG delay)
 
 #endif /* CONF_WITH_MFP */
 
-/* "sieve", to get only the fourth interrupt */
+/*
+ * "sieve", to get only the fourth interrupt.  because this is
+ * a global variable, it is automatically initialised to zero.
+ */
 WORD timer_c_sieve;
 
 void init_system_timer(void)
 {
-    timer_c_sieve = 0x1111;
+    /* The system timer is initially disabled since the sieve is zero (see note above) */
     timer_ms = 20;
 
 #if !CONF_WITH_MFP
@@ -195,6 +201,8 @@ void init_system_timer(void)
 
 #if CONF_COLDFIRE_TIMER_C
     coldfire_init_system_timer();
+#elif defined(MACHINE_LISA)
+    lisa_init_system_timer();
 #elif CONF_WITH_MFP
     /* Timer C: ctrl = divide 64, data = 192 */
     xbtimer(2, 0x50, 192, (LONG)int_timerc);
