@@ -3,7 +3,7 @@
  *
  * Copyright 1982 by Digital Research Inc.  All rights reserved.
  * Copyright 1999 by Caldera, Inc. and Authors:
- * Copyright 2002-2019 The EmuTOS development team
+ * Copyright 2002-2021 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -175,7 +175,6 @@ void vdi_vsf_interior(Vwk * vwk)
 {
     WORD fs;
 
-    CONTRL[4] = 1;
     fs = ((INTIN[0]<MIN_FILL_STYLE) || (INTIN[0]>MAX_FILL_STYLE)) ? DEF_FILL_STYLE : INTIN[0];
 
     INTOUT[0] = vwk->fill_style = fs;
@@ -189,7 +188,6 @@ void vdi_vsf_style(Vwk * vwk)
 {
     WORD fi;
 
-    CONTRL[4] = 1;
     fi = INTIN[0];
 
     if (vwk->fill_style == FIS_PATTERN) {
@@ -210,7 +208,6 @@ void vdi_vsf_color(Vwk * vwk)
 {
     WORD fc;
 
-    CONTRL[4] = 1;
     fc = validate_color_index(INTIN[0]);
 
     INTOUT[0] = fc;
@@ -229,7 +226,6 @@ void vdi_vsf_perimeter(Vwk * vwk)
         INTOUT[0] = 1;
         vwk->fill_per = TRUE;
     }
-    CONTRL[4] = 1;
 }
 
 
@@ -333,8 +329,6 @@ void vdi_vqf_attributes(Vwk * vwk)
     *pointer++ = vwk->fill_index + 1;
     *pointer++ = vwk->wrt_mode + 1;
     *pointer = vwk->fill_per;
-
-    CONTRL[4] = 5;
 }
 
 
@@ -421,8 +415,9 @@ bub_sort (WORD * buf, WORD count)
  *
  * (Sutherland and Hodgman Polygon Clipping Algorithm)
  *
- * For each non-horizontal scanline crossing poly, do:
- *   - find intersection points of scan line with poly edges.
+ * For each scan line:
+ *  For each non-horizontal scanline crossing poly, do:
+ *   - Find intersection points of scan line with poly edges
  *   - Sort intersections left to right
  *   - Draw pixels between each pair of points (x coords) on the scan line
  */
@@ -437,133 +432,118 @@ bub_sort (WORD * buf, WORD count)
  * was moved to the stack when clc_flit() was re-implemented in C.
  */
 
-void
-clc_flit (const VwkAttrib * attr, const VwkClip * clipper, const Point * point, WORD y, int vectors)
+void clc_flit(const VwkAttrib *attr, const VwkClip *clipper, const Point *point, WORD vectors, WORD start, WORD end)
 {
     WORD * bufptr;              /* point to array of x-values. */
     int intersections;          /* count of intersections */
     int i;
+    WORD y;                     /* current scan line */
 
-    /* Initialize the pointers and counters. */
-    intersections = 0;  /* reset counter */
-    bufptr = vdishare.main.fill_buffer;
+    for (y = start; y > end; y--) {
+        /* Initialize the pointers and counters. */
+        intersections = 0;  /* reset counter */
+        bufptr = vdishare.main.fill_buffer;
 
-    /* find intersection points of scan line with poly edges. */
-    for (i = 0; i < vectors; i++) {
-        WORD y1, y2, dy;
+        /* find intersection points of scan line with poly edges. */
+        for (i = 0; i < vectors; i++) {
+            WORD y1, y2, dy;
 
-        y1 = point[i].y;        /* fetch y-value of 1st endpoint. */
-        y2 = point[i+1].y;      /* fetch y-value of 2nd endpoint. */
+            y1 = point[i].y;        /* fetch y-value of 1st endpoint. */
+            y2 = point[i+1].y;      /* fetch y-value of 2nd endpoint. */
 
-        /* if the current vector is horizontal, ignore it. */
-        dy = y2 - y1;
-        if ( dy ) {
-            LONG dy1, dy2;
+            /* if the current vector is horizontal, ignore it. */
+            dy = y2 - y1;
+            if (dy) {
+                WORD dy1, dy2;
 
-            /* fetch scan-line y. */
-            dy1 = y - y1;       /* d4 - delta y1. */
-            dy2 = y - y2;       /* d3 - delta y2. */
+                /* fetch scan-line y. */
+                dy1 = y - y1;       /* d4 - delta y1. */
+                dy2 = y - y2;       /* d3 - delta y2. */
 
-            /*
-             * Determine whether the current vector intersects with the scan
-             * line we wish to draw.  This test is performed by computing the
-             * y-deltas of the two endpoints from the scan line.
-             * If both deltas have the same sign, then the line does
-             * not intersect and can be ignored.  The origin for this
-             * test is found in Newman and Sproull.
-             */
-            if ((dy1 < 0) != (dy2 < 0)) {
-                int dx;
-                WORD x1, x2;
-                x1 = point[i].x;        /* fetch x-value of 1st endpoint. */
-                x2 = point[i+1].x;      /* fetch x-value of 2nd endpoint. */
-                dx = (x2 - x1) << 1;    /* so we can round by adding 1 below */
-                if (intersections >= MAX_VERTICES)
-                    break;
-                intersections++;
-                /* fill edge buffer with x-values */
-                if ( dx < 0 ) {
-                    /* does ((dy2 * dx / dy + 1) >> 1) + x2; */
-                    *bufptr++ = ((mul_div(dy2, dx, dy) + 1) >> 1) + x2;
-                }
-                else {
-                    /* does ((dy1 * dx / dy + 1) >> 1) + x1; */
-                    *bufptr++ = ((mul_div(dy1, dx, dy) + 1) >> 1) + x1;
+                /*
+                 * Determine whether the current vector intersects with the scan
+                 * line we wish to draw.  This test is performed by computing the
+                 * y-deltas of the two endpoints from the scan line.
+                 * If both deltas have the same sign, then the line does
+                 * not intersect and can be ignored.  The origin for this
+                 * test is found in Newman and Sproull.
+                 */
+                if ((dy1^dy2) < 0) {
+                    int dx;
+                    WORD x1, x2;
+                    x1 = point[i].x;        /* fetch x-value of 1st endpoint. */
+                    x2 = point[i+1].x;      /* fetch x-value of 2nd endpoint. */
+                    dx = (x2 - x1) << 1;    /* so we can round by adding 1 below */
+                    if (intersections >= MAX_VERTICES)
+                        break;
+                    intersections++;
+                    /* fill edge buffer with x-values */
+                    if (dx < 0) {
+                        /* does ((dy2 * dx / dy + 1) >> 1) + x2; */
+                        *bufptr++ = ((mul_div(dy2, dx, dy) + 1) >> 1) + x2;
+                    }
+                    else {
+                        /* does ((dy1 * dx / dy + 1) >> 1) + x1; */
+                        *bufptr++ = ((mul_div(dy1, dx, dy) + 1) >> 1) + x1;
+                    }
                 }
             }
         }
-    }
 
-    /*
-     * All of the points of intersection have now been found.  If there
-     * were none then there is nothing more to do.  Otherwise, sort the
-     * list of points of intersection in ascending order.
-     * (The list contains only the x-coordinates of the points.)
-     */
+        /*
+         * All of the points of intersection have now been found.  If there
+         * were none (or one, which I think is impossible), then there is
+         * nothing more to do.  Otherwise, sort the list of points of
+         * intersection in ascending order.
+         * (The list contains only the x-coordinates of the points.)
+         */
+        if (intersections < 2)
+            continue;
 
-    /* anything to do? */
-    if (intersections == 0)
-        return;
-
-    /* bubblesort the intersections, if it makes sense */
-    if ( intersections > 1 )
+        /*
+         * Sort the intersections.  There are almost always exactly 2, except
+         * for weird shapes (if this wasn't true, bubble sort would be a bad
+         * choice).
+         */
         bub_sort(vdishare.main.fill_buffer, intersections);
 
-    /*
-     * Testing under Atari TOS shows that the fill area always *includes*
-     * the left & right perimeter (for those functions that allow the
-     * perimeter to be drawn separately, it is drawn on top of the edge
-     * pixels).  We now conform to Atari TOS.
-     */
-
-    if (attr->clip) {
         /*
-         * Clipping is in force.  Clip the endpoints of the line segment
-         * to the left and right sides of the clipping rectangle.
+         * Testing under Atari TOS shows that the fill area always *includes*
+         * the left & right perimeter (for those functions that allow the
+         * perimeter to be drawn separately, it is drawn on top of the edge
+         * pixels).  We now conform to Atari TOS.
          */
 
-        /* loop through buffered points */
-        WORD * ptr = vdishare.main.fill_buffer;
-        for (i = intersections / 2 - 1; i >= 0; i--) {
+        /*
+         * Loop through points, calling draw_rect_common() for each pair
+         */
+        bufptr = vdishare.main.fill_buffer;
+        i = intersections / 2;
+        while(i--) {
             WORD x1, x2;
             Rect rect;
 
             /* grab a pair of endpoints */
-            x1 = *ptr++;
-            x2 = *ptr++;
+            x1 = *bufptr++;
+            x2 = *bufptr++;
 
-            if ( x1 < clipper->xmn_clip ) {
-                if ( x2 < clipper->xmn_clip )
-                    continue;           /* entire segment clipped left */
-                x1 = clipper->xmn_clip; /* clip left end of line */
-            }
+            /* handle clipping */
+            if (attr->clip) {
+                if (x1 < clipper->xmn_clip) {
+                    if (x2 < clipper->xmn_clip)
+                        continue;           /* entire segment clipped left */
+                    x1 = clipper->xmn_clip; /* clip left end of line */
+                }
 
-            if ( x2 > clipper->xmx_clip ) {
-                if ( x1 > clipper->xmx_clip )
-                    continue;           /* entire segment clippped */
-                x2 = clipper->xmx_clip; /* clip right end of line */
+                if (x2 > clipper->xmx_clip) {
+                    if (x1 > clipper->xmx_clip)
+                        continue;           /* entire segment clipped right */
+                    x2 = clipper->xmx_clip; /* clip right end of line */
+                }
             }
             rect.x1 = x1;
             rect.y1 = y;
             rect.x2 = x2;
-            rect.y2 = y;
-
-            /* rectangle fill routine draws horizontal line */
-            draw_rect_common(attr, &rect);
-        }
-    }
-    else {
-        /* Clipping is not in force.  Draw from point to point. */
-
-        /* loop through buffered points */
-        WORD * ptr = vdishare.main.fill_buffer;
-        for (i = intersections / 2 - 1; i >= 0; i--) {
-            Rect rect;
-
-            /* grab a pair of endpoints */
-            rect.x1 = *ptr++;
-            rect.y1 = y;
-            rect.x2 = *ptr++;
             rect.y2 = y;
 
             /* rectangle fill routine draws horizontal line */
@@ -580,7 +560,7 @@ clc_flit (const VwkAttrib * attr, const VwkClip * clipper, const Point * point, 
 void
 polygon(Vwk * vwk, Point * ptsin, int count)
 {
-    WORD i, k, y;
+    WORD i, k;
     WORD fill_maxy, fill_miny;
     Point * point, * ptsget, * ptsput;
     const VwkClip *clipper;
@@ -622,9 +602,8 @@ polygon(Vwk * vwk, Point * ptsin, int count)
     Vwk2Attrib(vwk, &attr, vwk->fill_color);
 
     /* really draw it */
-    for (y = fill_maxy; y > fill_miny; y--) {
-        clc_flit(&attr, clipper, ptsin, y, count);
-    }
+    clc_flit(&attr, clipper, ptsin, count, fill_maxy, fill_miny);
+
     if (vwk->fill_per == TRUE) {
         LN_MASK = 0xffff;
         polyline(vwk, ptsin, count+1, vwk->fill_color);
@@ -641,13 +620,11 @@ void vdi_v_fillarea(Vwk * vwk)
     Point * point = (Point*)PTSIN;
     int count = CONTRL[1];
 
-#if 0
 #if HAVE_BEZIER
     /* check, if we want to draw a filled bezier curve */
     if (CONTRL[5] == 13 && vwk->bez_qual )
         v_bez_fill(vwk, point, count);
     else
-#endif
 #endif
         polygon(vwk, point, count);
 }
@@ -996,7 +973,7 @@ void contourfill(const VwkAttrib * attr, const VwkClip *clip)
 /*
  * no_abort
  *
- * the VDI routine v_contourfill() calls the lineA routine contourfill()
+ * the VDI routine v_contourfill() calls the line-A routine contourfill()
  * to do its work.  contourfill() calls the routine pointed to by SEEDABORT
  * on a regular basis to determine whether to prematurely abort the fill.
  * we initialise SEEDABORT to point to the routine below, which never
@@ -1032,13 +1009,12 @@ void vdi_v_get_pixel(Vwk * vwk)
 
     INTOUT[0] = pel;
     INTOUT[1] = REV_MAP_COL[pel];
-    CONTRL[4] = 2;
 }
 
 
 
 /*
- * get_pix - gets a pixel (just for linea!)
+ * get_pix - gets a pixel (just for line-A)
  *
  * input:
  *     PTSIN(0) = x coordinate.
@@ -1056,7 +1032,7 @@ get_pix(void)
 
 
 /*
- * put_pix - plot a pixel (just for linea!)
+ * put_pix - plot a pixel (just for line-A)
  *
  * input:
  *     INTIN(0) = pixel value.

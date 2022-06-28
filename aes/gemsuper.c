@@ -1,6 +1,6 @@
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2019 The EmuTOS development team
+*                 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -30,6 +30,7 @@
 #include "gemaplib.h"
 #include "geminit.h"
 #include "gemevlib.h"
+#include "gemmnext.h"
 #include "gemmnlib.h"
 #include "gemoblib.h"
 #include "gemobed.h"
@@ -43,17 +44,12 @@
 #include "gemshlib.h"
 #include "gemfmalt.h"
 #include "gemasm.h"
+#include "gemctrl.h"
 
 #include "string.h"
 
 
-#if CONF_SERIAL_CONSOLE
-#define ENABLE_KDEBUG
-#endif
-
 LONG super(WORD cx, AESPB *pcrys_blk);  /* called only from gemdosif.S */
-
-GLOBAL WORD     gl_mnclick;
 
 static void     *ad_rso;
 
@@ -79,9 +75,8 @@ static void aestrace(const char* message)
 static UWORD crysbind(WORD opcode, AESGLOBAL *pglobal, WORD control[], WORD int_in[], WORD int_out[], LONG addr_in[])
 {
     LONG    count, buparm;
-    MFORM   *maddr;
     OBJECT  *tree;
-    WORD    mouse, ret;
+    WORD    ret;
     WORD    unsupported = FALSE;
 
     count = 0L;
@@ -152,8 +147,14 @@ static UWORD crysbind(WORD opcode, AESGLOBAL *pglobal, WORD control[], WORD int_
         if (MU_FLAGS & MU_TIMER)
             count = MAKE_ULONG(MT_HICOUNT, MT_LOCOUNT);
         buparm = combine_cms(MB_CLICKS,MB_MASK,MB_STATE);
+#if CONF_WITH_MENU_EXTENSION
+        ret = ev_multi((MU_FLAGS & MU_TOSVALID),
+                        (MOBLK *)&MMO1_FLAGS, (MOBLK *)&MMO2_FLAGS, NULL,
+                        count, buparm, (WORD *)MME_PBUFF, &EV_MX);
+#else
         ret = ev_multi(MU_FLAGS, (MOBLK *)&MMO1_FLAGS, (MOBLK *)&MMO2_FLAGS,
                         count, buparm, (WORD *)MME_PBUFF, &EV_MX);
+#endif
         if ((ret & MU_MESAG) && (*(WORD *)MME_PBUFF == AC_CLOSE))
             rlr->p_flags |= AP_ACCLOSE;
         break;
@@ -166,14 +167,14 @@ static UWORD crysbind(WORD opcode, AESGLOBAL *pglobal, WORD control[], WORD int_
         mn_bar((OBJECT *)MM_ITREE, SHOW_IT);
         break;
     case MENU_ICHECK:
-        do_chg((OBJECT *)MM_ITREE, ITEM_NUM, CHECKED, CHECK_IT, FALSE, FALSE);
+        ret = do_chg((OBJECT *)MM_ITREE, ITEM_NUM, CHECKED, CHECK_IT, FALSE, FALSE);
         break;
     case MENU_IENABLE:
-        do_chg((OBJECT *)MM_ITREE, (ITEM_NUM & 0x7fff), DISABLED,
+        ret = do_chg((OBJECT *)MM_ITREE, (ITEM_NUM & 0x7fff), DISABLED,
                 !ENABLE_IT, ((ITEM_NUM & 0x8000) != 0x0), FALSE);
         break;
     case MENU_TNORMAL:
-        do_chg((OBJECT *)MM_ITREE, TITLE_NUM, SELECTED, !NORMAL_IT, TRUE, TRUE);
+        ret = do_chg((OBJECT *)MM_ITREE, TITLE_NUM, SELECTED, !NORMAL_IT, TRUE, TRUE);
         break;
     case MENU_TEXT:
         tree = (OBJECT *)MM_ITREE;
@@ -182,28 +183,20 @@ static UWORD crysbind(WORD opcode, AESGLOBAL *pglobal, WORD control[], WORD int_
     case MENU_REGISTER:
         ret = mn_register(MM_PID, (char *)MM_PSTR);
         break;
-    case MENU_UNREGISTER:
-#if CONF_WITH_PCGEM
-        /* distinguish between menu_unregister() and menu_popup() */
-        if (IN_LEN == 1)
-            mn_unregister( MM_MID );
-        else
+#if CONF_WITH_MENU_EXTENSION
+    case MENU_POPUP:
+        ret = mn_popup((MENU *)MPOP_IN, MPOP_XPOS, MPOP_YPOS, (MENU *)MPOP_OUT);
+        break;
+    case MENU_ATTACH:
+        ret = mn_attach(MPOP_FLAG, (OBJECT *)MPOP_IN, MPOP_ITEM, (MENU *)MPOP_OUT);
+        break;
+    case MENU_ISTART:
+        ret = mn_istart(MPOP_FLAG, (OBJECT *)MPOP_IN, MPOP_ITEM, MPOP_ITEM2);
+        break;
+    case MENU_SETTINGS:
+        mn_settings(MPOP_FLAG, (MN_SET *)MPOP_SET);
+        break;
 #endif
-            unsupported = TRUE;
-        break;
-    case MENU_CLICK:
-        /* distinguish between menu_click() and menu_attach() */
-        /*
-         * although menu_click() is PC-GEM only, it's always
-         * enabled because the desktop uses it.
-         */
-        if (IN_LEN == 2) {
-            if (MN_SETIT)
-                gl_mnclick = MN_CLICK;
-            ret = gl_mnclick;
-        } else
-            unsupported = TRUE;
-        break;
 
     /* Object Manager */
     case OBJC_ADD:
@@ -223,7 +216,7 @@ static UWORD crysbind(WORD opcode, AESGLOBAL *pglobal, WORD control[], WORD int_
         ob_offset((OBJECT *)OB_TREE, OB_OBJ, &OB_XOFF, &OB_YOFF);
         break;
     case OBJC_ORDER:
-        ob_order((OBJECT *)OB_TREE, OB_OBJ, OB_NEWPOS);
+        ret = ob_order((OBJECT *)OB_TREE, OB_OBJ, OB_NEWPOS);
         break;
     case OBJC_EDIT:
         gsx_sclip(&gl_rfull);
@@ -234,6 +227,11 @@ static UWORD crysbind(WORD opcode, AESGLOBAL *pglobal, WORD control[], WORD int_
         gsx_sclip((GRECT *)&OB_XCLIP);
         ob_change((OBJECT *)OB_TREE, OB_DRAWOB, OB_NEWSTATE, OB_REDRAW);
         break;
+#if CONF_WITH_3D_OBJECTS
+    case OBJC_SYSVAR:
+        ret = ob_sysvar(OB_MODE, OB_WHICH, OB_I1, OB_I2, &OB_O1, &OB_O2);
+        break;
+#endif
 
     /* Form Manager */
     case FORM_DO:
@@ -292,25 +290,14 @@ static UWORD crysbind(WORD opcode, AESGLOBAL *pglobal, WORD control[], WORD int_
         ret = gl_handle;
         break;
     case GRAF_MOUSE:
-        if (GR_MNUMBER > USER_DEF)
-        {
-            if (GR_MNUMBER == M_OFF)
-                gsx_moff();
-            if (GR_MNUMBER == M_ON)
-                gsx_mon();
-            break;
-        }
-        if (GR_MNUMBER != USER_DEF)
-        {
-            if ((GR_MNUMBER < ARROW) || (GR_MNUMBER > OUTLN_CROSS))
-                mouse = ARROW;
-            else
-                mouse = GR_MNUMBER;
-            maddr = mouse_cursor[mouse];
+        if (gl_ctmown)          /* if the ctlmgr owns the mouse, */
+        {                       /* give up control (temporarily) */
+            ct_mouse(FALSE);    /* sets gl_ctmown = FALSE as byproduct */
+            gr_mouse(GR_MNUMBER, (MFORM *)GR_MADDR);
+            ct_mouse(TRUE);     /* restores gl_ctmown = TRUE as byproduct */
         }
         else
-            maddr = (MFORM *)GR_MADDR;
-        gsx_mfset(maddr);
+            gr_mouse(GR_MNUMBER, (MFORM *)GR_MADDR);
         break;
     case GRAF_MKSTATE:
         gr_mkstate(&GR_MX, &GR_MY, &GR_MSTATE, &GR_KSTATE);
@@ -342,19 +329,19 @@ static UWORD crysbind(WORD opcode, AESGLOBAL *pglobal, WORD control[], WORD int_
         ret = wm_create(WM_KIND, (GRECT *)&WM_WX);
         break;
     case WIND_OPEN:
-        wm_open(WM_HANDLE, (GRECT *)&WM_WX);
+        ret = wm_open(WM_HANDLE, (GRECT *)&WM_WX);
         break;
     case WIND_CLOSE:
-        wm_close(WM_HANDLE);
+        ret = wm_close(WM_HANDLE);
         break;
     case WIND_DELETE:
-        wm_delete(WM_HANDLE);
+        ret = wm_delete(WM_HANDLE);
         break;
     case WIND_GET:
-        wm_get(WM_HANDLE, WM_WFIELD, &WM_OX);
+        ret = wm_get(WM_HANDLE, WM_WFIELD, &WM_OX, &WM_IX);
         break;
     case WIND_SET:
-        wm_set(WM_HANDLE, WM_WFIELD, &WM_IX);
+        ret = wm_set(WM_HANDLE, WM_WFIELD, &WM_IX);
         break;
     case WIND_FIND:
         ret = wm_find(WM_MX, WM_MY);

@@ -1,7 +1,7 @@
 /*
  * EmuCON2: a command processor for EmuTOS
  *
- * Copyright (C) 2013-2019 The EmuTOS development team
+ * Copyright (C) 2013-2021 The EmuTOS development team
  *
  * Authors:
  *  RFB    Roger Burrows
@@ -23,6 +23,7 @@
  */
 #include "cmd.h"
 #include "version.h"
+#include "string.h"
 
 /*
  *  global variables
@@ -43,6 +44,7 @@ LOCAL char input_line[MAX_LINE_SIZE];
 LOCAL char *arglist[MAX_ARGS];
 LOCAL char redir_name[MAXPATHLEN];
 LOCAL WORD original_res;
+LOCAL WORD original_color3;
 LOCAL LONG vdo_value;
 
 /*
@@ -54,6 +56,7 @@ PRIVATE void create_redir(const char *name);
 PRIVATE WORD execute(WORD argc,char **argv,char *redir);
 PRIVATE WORD get_nflops(void);
 PRIVATE void strip_quotes(int argc,char **argv);
+PRIVATE void getenv(char **ppath, const char *psrch);
 
 int cmdmain(void);      /* called only from cmdasm.S */
 
@@ -75,6 +78,7 @@ WORD argc, rc;
     original_res = (vdo_value < _VDO_TT) ? Getrez() : -1;
 #endif
     current_res = original_res;
+    original_color3 = Setcolor(3,-1);
 
     nflops_copy = Supexec(get_nflops);      /* number of floppy drives */
 
@@ -92,10 +96,26 @@ WORD argc, rc;
 
     linewrap = 0;
     dta = (DTA *)Fgetdta();
+    redir_name[0] = '\0';
     redir_handle = -1L;
 
     if (init_cmdedit() < 0)
         messagenl(_("warning: no history buffers"));
+
+    {
+        /* Setup path from the PATH environment variable */
+        char *largv[2];
+        getenv(&largv[1],"PATH=");
+        if (largv[1]) {
+            if (!largv[1][0])   /* skip NUL after PATH= */
+                largv[1]++;
+            if (largv[1][0]) {
+                /* path ${PATH$} */
+                largv[0] = "path";
+                execute(2,largv,redir_name);
+            }
+        }
+    }
 
     while(1) {
         init_screen();      /* init variables for screen size */
@@ -200,34 +220,80 @@ int i;
 }
 
 /*
+ *  Find a variable in the process's environment.
+ *  psrch: variable name followed by '=', e.g. "PATH="
+ *  ppath: returned address of the first character after the found
+ *         variable, or NULL if variable was not found.
+ *  Note:  the implementation is the same as that of the AES sh_envrn
+ *         which we can't use because EmuCON is not a GEM app.
+ */
+PRIVATE void getenv(char **ppath, const char *psrch)
+{
+    /* The implementation is the same as that of the AES sh_envrn */
+    char *p;
+    WORD len;
+
+    len = strlen(psrch);
+    *ppath = NULL;
+
+    /*
+     * scan environment string until double nul
+     */
+    for (p = environment; *p; ) {
+        if (strncmp(p, psrch, len) == 0) {
+            *ppath = p + len;
+            break;
+        }
+        while(*p++) /* skip to end of current env variable */
+            ;
+    }
+}
+
+/*
  *  change video resolution - assumes new resolution has been validated
  */
 PRIVATE void change_res(WORD res)
 {
 #if CONF_ATARI_HARDWARE
+    WORD fgcol, bgcol;
+
     if (res == current_res)
         return;
 
     Setscreen(-1L,-1L,res,0);
-#ifndef STANDALONE_CONSOLE
-    /* use EmuTOS extension to initialize palette for given resolution */
-    Setscreen(-1L,-1L,0xc000|res,0);
-#else
-    /* mode changed *without* palette change -> set readable text color index */
-    {
-        static int old_color_3 = -1;
-        /* switching to ST medium: set color 3 to black */
-        if (res == ST_MEDIUM)
-            old_color_3 = Setcolor(3, 0);
-        /* switching from ST medium: reset color 3 */
-        if (current_res == ST_MEDIUM && old_color_3 != -1)
-            Setcolor(3, old_color_3);
-        conout(ESC);    /* with VT52 command */
-        conout('b');    /* b=foreground, c=background */
-        /* OS masks color index, so 15 is fine also for mono/medium modes */
-        conout(15);
+
+    /*
+     * set readable text color index for ST medium
+     *
+     *  when switching to ST medium, ensure colour 3 is black
+     *  when switching from ST medium, restore original colour
+     */
+    if (res == ST_MEDIUM)
+        Setcolor(3,BLACK);
+    else if (current_res == ST_MEDIUM)
+        Setcolor(3,original_color3);
+    fgcol = 15; /* OS masks color index, so 15 is fine also for mono/medium modes */
+    bgcol = 0;
+
+    /*
+     * handle ST high (i.e. TT 'Duochrome')
+     *
+     * this can only happen with the TT shifter, and in this case ST high
+     * is implemented via the TT 'Duochrome' mode, so we must reverse
+     * foreground & background colours (see comments in bios/screen.c
+     * for the gory details)
+     */
+    if (res == ST_HIGH) {
+        fgcol = 0;
+        bgcol = 15;
     }
-#endif
+
+    escape('b');    /* ESC b => set foreground colour */
+    conout(fgcol);
+    escape('c');    /* ESC c => set background colour */
+    conout(bgcol);
+
+    clear_screen();
     enable_cursor();
     current_res = res;
 #endif

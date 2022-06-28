@@ -9,7 +9,7 @@ the motherboard.
 
 Note 2: Extra hardware is autodetected, but the following TT- and
 Falcon-specific hardware is not supported: memory control unit,
-video, SCSI, NVRAM, and the second MFP of a TT.
+video, DSP, SCSI, NVRAM, and the second MFP of a TT.
 
 The desktop features are comparable to Atari TOS 2.
 
@@ -21,12 +21,15 @@ etospak3es.img - Spanish (PAL)
 etospak3fi.img - Finnish (PAL)
 etospak3fr.img - French (PAL)
 etospak3gr.img - Greek (PAL)
+etospak3hu.img - Hungarian (PAL)
 etospak3it.img - Italian (PAL)
 etospak3nl.img - Dutch (PAL)
 etospak3no.img - Norwegian (PAL)
+etospak3pl.img - Polish (PAL)
 etospak3ru.img - Russian (PAL)
 etospak3se.img - Swedish (PAL)
 etospak3sg.img - Swiss German (PAL)
+etospak3tr.img - Turkish (PAL)
 etospak3us.img - English (NTSC)
 etospak3uk.img - English (PAL)
 

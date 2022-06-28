@@ -2,7 +2,7 @@
  * bdosmain.c - GEMDOS main function dispatcher
  *
  * Copyright (C) 2001 Lineo, Inc.
- *               2002-2019 The EmuTOS development team
+ *               2002-2021 The EmuTOS development team
  *
  * Authors:
  *  EWF  Eric W. Fleischman
@@ -76,6 +76,9 @@ static long xgetver(void);
  * since it was never freed
  */
 static PD initial_basepage;
+
+/* initial environment string */
+static const char double_nul[2] __attribute__ ((aligned (2))) = { 0, 0 };
 
 
 /*
@@ -193,7 +196,13 @@ static const FND funcs[] =
 #else
     { NI, 0, 0 },               /* 0x14 */
 #endif
+
+#if CONF_WITH_VIDEL
     { F(srealloc),  0, 2 },     /* 0x15 */
+#else
+    { NI, 0, 0 },               /* 0x15 */
+#endif
+
     { NI, 0, 0 },
     { NI, 0, 0 },
     { NI, 0, 0 },
@@ -329,6 +338,7 @@ void osinit_after_xmaddalt(void)
     /* Set up initial process. Required by Malloc() */
     run = &initial_basepage;
     run->p_flags = PF_STANDARD;
+    run->p_env = CONST_CAST(char *,double_nul);
 
     time_init();
 
@@ -337,28 +347,6 @@ void osinit_after_xmaddalt(void)
     stdhdl_init();  /* set up system initial standard handles */
 
     KDEBUG(("BDOS: cinit - osinit successful ...\n"));
-}
-
-#define ENV_SIZE    11          /* sufficient for standard PATH=^X:\^^ (^=nul byte) */
-#define DEF_PATH    "A:\\"      /* default value for path */
-
-static char default_env[ENV_SIZE];  /* default environment area */
-
-/* BIOS will call this after bootdev has been initialized */
-
-void osinit_environment(void)
-{
-    char *p;
-
-    /* Build default environment, just a PATH= string */
-    strcpy(default_env,PATH_ENV);
-    p = default_env + sizeof(PATH_ENV); /* point to first byte of path string */
-    strcpy(p,DEF_PATH);
-    *p += bootdev;                      /* fix up drive letter */
-    p += sizeof(DEF_PATH);
-    *p = '\0';                          /* terminate with double nul */
-
-    initial_basepage.p_env = default_env;
 }
 
 
@@ -461,11 +449,9 @@ restrt:
 
             /* then, in with the new */
             b = (BPB *)Getbpb(errdrv);
-            if ((long)b <= 0)
+            if (!b)
             {
                 drvsel &= ~(1L<<errdrv);
-                if (b)
-                    return (long)b;
                 return rc;
             }
 

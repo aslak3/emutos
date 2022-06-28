@@ -10,6 +10,7 @@
 /*.sym
 /*.img
 /*.rom
+/*.dc42
 /*.map
 /localconf.h
 /makefile.dep
@@ -21,6 +22,9 @@
 /grd
 /ird
 /mrd
+/localise
+/localise1.tmp
+/localise2.tmp
 /mkrom
 /temp.rsc
 /temp.def

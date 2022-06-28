@@ -2,7 +2,7 @@
  * mem.h - header file for memory and process management routines
  *
  * Copyright (C) 2001 Lineo, Inc. and
- *               2002-2019 The EmuTOS development team
+ *               2002-2021 The EmuTOS development team
  *
  * Authors:
  *  LVL Laurent Vogel
@@ -26,6 +26,12 @@ extern  MPB     pmd;    /* the mem pool for the main user ST ram */
 extern  MPB     pmdalt;  /* the memory pool for the alternative ram (TT-RAM or other) */
 #endif
 
+/*
+ * Alignment of malloc'ed memory.
+ * This value must be set to 2^n-1 to align on multiples of 2^n.
+ */
+extern  ULONG   malloc_align_stram;
+#define MALLOC_ALIGN_ALTRAM     3
 
 /*
  * in osmem.c
@@ -62,8 +68,11 @@ long xmfree(void *addr);
 long xsetblk(int n, void *blk, long len);
 /* mxalloc */
 void *xmxalloc(long amount, int mode);
+
+#if CONF_WITH_VIDEL
 /* srealloc */
 void *srealloc(long amount);
+#endif
 
 /* init user memory */
 void umem_init(void);

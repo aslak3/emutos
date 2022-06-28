@@ -2,7 +2,7 @@
  * gemfslib.c - the file selector
  *
  * Copyright 1999, Caldera Thin Clients, Inc.
- *           2002-2019 The EmuTOS development team
+ *           2002-2021 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -31,11 +31,14 @@
 #include "gemobed.h"
 #include "string.h"
 #include "intmath.h"
+#include "asm.h"
+#include "miscutil.h"
 
 #define NM_NAMES (F9NAME-F1NAME+1)
 #define NAME_OFFSET F1NAME
 #define NM_DRIVES (FSLSTDRV-FS1STDRV+1)
 #define DRIVE_OFFSET FS1STDRV
+#define DRIVE_ROWS   9              /* (3 columns of buttons for the standard 26 drives) */
 
 #define LEN_FSNAME (LEN_ZFNAME+1)   /* includes leading flag byte & trailing nul */
 #define LEN_FSPATH  (LEN_ZPATH+4)   /* at least 3 bytes longer than max path */
@@ -55,6 +58,100 @@ static LONG nm_files;       /* total number of slots in g_fslist[] */
  */
 void fs_start(void)
 {
+#if CONF_WITH_3D_OBJECTS
+    OBJECT *obj, *tree = rs_trees[FSELECTR];
+    TEDINFO *ted;
+    WORD i, row;
+
+    /*
+     * adjust the positions and/or dimensions of all the objects within
+     * FILEAREA (the IBOX that contains the closer, title, scroll bar,
+     * and filenames), plus FILEAREA itself
+     *
+     * at the same time, we set any 3D object bits required
+     */
+    tree[FCLSBOX].ob_flags |= FL3DACT;
+    tree[FCLSBOX].ob_x += ADJ3DSTD;
+    tree[FCLSBOX].ob_y += ADJ3DSTD;
+
+    tree[FTITLE].ob_flags |= FL3DBAK;
+    tree[FTITLE].ob_x += 2*ADJ3DSTD-1;
+    tree[FTITLE].ob_height += 2*ADJ3DSTD;
+    /* use pattern 4, just like TOS4 */
+    ted = (TEDINFO *)tree[FTITLE].ob_spec;
+    ted->te_color = (ted->te_color & 0xff8f) | (IP_4PATT<<4);
+
+    tree[FILEBOX].ob_y += 3*ADJ3DSTD-1;
+    tree[FILEBOX].ob_width += ADJ3DSTD;
+
+    tree[SCRLBAR].ob_x += 2*ADJ3DSTD-1;
+    tree[SCRLBAR].ob_y += 3*ADJ3DSTD-1;
+
+    tree[FUPAROW].ob_flags |= FL3DACT;
+    tree[FUPAROW].ob_x += ADJ3DSTD;
+    tree[FUPAROW].ob_y += ADJ3DSTD;
+    tree[FUPAROW].ob_width -= 2*ADJ3DSTD;
+
+    tree[FSVSLID].ob_y += 3*ADJ3DSTD;
+    tree[FSVSLID].ob_height -= 6*ADJ3DSTD;
+
+    /* use pattern 4, just like TOS4 */
+    tree[FSVSLID].ob_spec = (tree[FSVSLID].ob_spec & 0xffffff8fL) | (IP_4PATT<<4);
+
+    /* we only adjust x/w of FSVELEV here, because y/h are set dynamically */
+    tree[FSVELEV].ob_flags |= FL3DACT;
+    tree[FSVELEV].ob_x += ADJ3DSTD;
+    tree[FSVELEV].ob_width -= 2*ADJ3DSTD;
+
+    tree[FDNAROW].ob_flags |= FL3DACT;
+    tree[FDNAROW].ob_x += ADJ3DSTD;
+    tree[FDNAROW].ob_y -= ADJ3DSTD;
+    tree[FDNAROW].ob_width -= 2*ADJ3DSTD;
+
+    tree[FILEAREA].ob_y -= 6;       /* squeeze things together vertically */
+    tree[FILEAREA].ob_width += 2*ADJ3DSTD - 1;
+    tree[FILEAREA].ob_height += 3*ADJ3DSTD - 1;
+
+    /*
+     * adjust the position of all the drive-letter boxes, plus FSDRIVES
+     * (the IBOX that includes them)
+     *
+     * at the same time we mark them as 3D indicators
+     */
+    for (i = 0, obj = tree+DRIVE_OFFSET, row = 0; i < NM_DRIVES; i++, obj++, row++)
+    {
+        if (row >= DRIVE_ROWS)
+            row = 0;
+        obj->ob_flags |= FL3DIND;
+        obj->ob_x += 2*ADJ3DSTD;
+        obj->ob_y += 2*ADJ3DSTD + row*(3*ADJ3DSTD-1);
+    }
+
+    tree[FSDRIVES].ob_height += 2*ADJ3DSTD + DRIVE_ROWS*(3*ADJ3DSTD-1);
+    tree[FSDRIVES].ob_width += 4*ADJ3DSTD;
+
+    /*
+     * finally, handle the remaining objects that have ROOT as a parent, plus ROOT
+     *
+     * FSOK/FSCANCEL must move left to avoid interfering with FSDRIVES in lower resolutions
+     */
+    tree[FSDIRECT].ob_flags |= FL3DBAK;
+    tree[FSSELECT].ob_flags |= FL3DBAK;
+    tree[FSDRVTXT].ob_flags |= FL3DBAK;
+
+    tree[FSOK].ob_flags |= FL3DACT;
+    tree[FSOK].ob_x = tree[FILEAREA].ob_x;
+    tree[FSOK].ob_y += ADJ3DSTD;
+
+    tree[FSCANCEL].ob_flags |= FL3DACT;
+    tree[FSCANCEL].ob_x = tree[FILEAREA].ob_x + tree[FILEAREA].ob_width - tree[FSCANCEL].ob_width;
+    tree[FSCANCEL].ob_y = tree[FSOK].ob_y;
+
+    tree[ROOT].ob_flags |= FL3DBAK;
+    tree[ROOT].ob_height += 2*ADJ3DSTD;
+
+    ob_center(tree, &gl_rfs);
+#else
     OBJECT *tree = rs_trees[FSELECTR];
     WORD diff;
 
@@ -72,6 +169,7 @@ void fs_start(void)
     tree[FDNAROW].ob_width = gl_wbox;
     tree[FSVSLID].ob_width = gl_wbox;
     tree[FSVELEV].ob_width = gl_wbox;
+#endif
 }
 
 
@@ -89,14 +187,14 @@ static void centre_title(OBJECT *tree,WORD objnum)
 
 /*
  *  Routine to back off the end of a path string, stopping at either
- *  the first backslash or at the colon preceding the drive specifier.
+ *  the first path separator or at the colon preceding the drive specifier.
  *  The second argument specifies the end of the string; if NULL, the
  *  end is determined via strlen().  If the scan is stopped by a colon,
- *  the routine inserts a backslash in the string immediately following
+ *  the routine inserts a path separator in the string immediately following
  *  the colon.
  *
  *  Returns a pointer to the beginning of the string (if no colon or
- *  backslash found), or to the last backslash.
+ *  backslash found), or to the last path separator.
  */
 static char *fs_back(char *pstr, char *pend)
 {
@@ -105,16 +203,16 @@ static char *fs_back(char *pstr, char *pend)
     if (!pend)
         pend = pstr + strlen(pstr);
 
-    /* back off to last backslash (or colon) */
+    /* back off to last path separator (or colon) */
     for (p = pend; p != pstr; p--)
     {
-        if (*p == '\\')
+        if (*p == PATHSEP)
             break;
-        if (*p == ':')
+        if (*p == DRIVESEP)
         {
             if (p == pstr+1)    /* X: at the start of the string */
             {
-                ins_char(++p,0,'\\',LEN_ZPATH-3);
+                ins_char(++p,0,PATHSEP,LEN_ZPATH-3);
                 break;
             }
         }
@@ -131,7 +229,7 @@ static char *fs_back(char *pstr, char *pend)
 static char *fs_pspec(char *pstr, char *pend)
 {
     pend = fs_back(pstr, pend);
-    if (*pend == '\\')
+    if (*pend == PATHSEP)
         pend++;
 
     return pend;
@@ -182,7 +280,7 @@ static WORD fs_active(char *ppath, char *pspec, WORD *pcount)
 
     strcpy(allpath, ppath);         /* 'allpath' gets all files */
     fname = fs_pspec(allpath,NULL);
-    strcpy(fname,"*.*");
+    set_all_files(fname);
 
     user_dta = dos_gdta();          /* remember user's DTA */
     dos_sdta(&D.g_dta);
@@ -295,10 +393,14 @@ static void fs_format(OBJECT *tree, WORD currtop, WORD count)
     th = h = obj->ob_height;
     if (count > NM_NAMES)
     {
-        h = mul_div(NM_NAMES, h, count);
+        h = mul_div_round(NM_NAMES, h, count);
         h = max(gl_hbox, h);            /* min size elevator */
-        y = mul_div(currtop, th-h, count-NM_NAMES);
+        y = mul_div_round(currtop, th-h, count-NM_NAMES);
     }
+#if CONF_WITH_3D_OBJECTS
+    y += ADJ3DSTD;
+    h -= 2 * ADJ3DSTD;      /* we assume that 2*ADJ3DSTD < gl_hbox */
+#endif
     obj = treeptr + FSVELEV;
     obj->ob_y = y;
     obj->ob_height = h;
@@ -356,8 +458,7 @@ static WORD fs_nscroll(OBJECT *tree, WORD *psel, WORD curr, WORD count,
                 sy = r[0].g_y;
             }
 
-            bb_screen(S_ONLY, r[0].g_x, sy, r[0].g_x, dy, r[0].g_w,
-                                r[0].g_h * (NM_NAMES - diffcurr) );
+            bb_screen(r[0].g_x, sy, r[0].g_x, dy, r[0].g_w, r[0].g_h * (NM_NAMES - diffcurr) );
             if (!neg)
                 r[0].g_y += r[0].g_h * (NM_NAMES - diffcurr);
         }
@@ -426,7 +527,7 @@ static void set_mask(char *mask, char *path)
 
     pend = fs_pspec(path, NULL);
     if (!*pend)                 /* if there's no mask, add one */
-        strcpy(pend, "*.*");
+        set_all_files(pend);
     strlcpy(mask, pend, LEN_ZPATH);
 }
 
@@ -488,14 +589,11 @@ static WORD path_changed(char *path)
  */
 static WORD get_drive(char *path)
 {
-    char c;
+    WORD drive;
 
-    if (path[1] == ':')     /* drive letter is present */
-    {
-        c = toupper(path[0]);
-        if ((c >= 'A') && (c <= 'Z'))
-            return c - 'A';
-    }
+    drive = extract_drive_number(path);
+    if (drive >= 0)
+        return drive;
 
     return dos_gdrv();
 }
@@ -503,7 +601,7 @@ static WORD get_drive(char *path)
 
 /*
  *  File Selector input routine that takes control of the mouse
- *  and keyboard, searchs and sort the directory, draws the file
+ *  and keyboard, searches and sorts the directory, draws the file
  *  selector, interacts with the user to determine a selection
  *  or change of path, and returns to the application with
  *  the selected path, filename, and exit button.
@@ -692,7 +790,7 @@ WORD fs_input(char *pipath, char *pisel, WORD *pbutton, char *pilabel)
             fm_own(TRUE);
             value = gr_slidebox(tree, FSVSLID, FSVELEV, TRUE);
             fm_own(FALSE);
-            value = curr - mul_div(value, count-NM_NAMES, 1000);
+            value = curr - mul_div_round(value, count-NM_NAMES, 1000);
             if (value >= 0)
                 touchob = FUPAROW;
             else
@@ -733,7 +831,7 @@ WORD fs_input(char *pipath, char *pisel, WORD *pbutton, char *pilabel)
                 pstr = fs_pspec(locstr, NULL);
                 unfmt_str(selname+1, pstr);
                 pstr += strlen(pstr);
-                *pstr++ = '\\';
+                *pstr++ = PATHSEP;
                 strcpy(pstr, mask);
                 newlist = TRUE;
             }
@@ -742,7 +840,7 @@ WORD fs_input(char *pipath, char *pisel, WORD *pbutton, char *pilabel)
             pstr = fs_back(locstr, NULL);
             if (pstr == locstr)             /* we have a locstr like '*.*',  */
                 break;                      /*  so do nothing, just like TOS */
-            if (*--pstr == ':')             /* at root of drive, */
+            if (*--pstr == DRIVESEP)        /* at root of drive, */
                 break;                      /*  so nothing to do */
             pstr = fs_pspec(locstr, pstr);  /* back up past folder */
             strcpy(pstr, mask);
@@ -821,7 +919,7 @@ WORD fs_input(char *pipath, char *pisel, WORD *pbutton, char *pilabel)
     fm_dial(FMD_FINISH, &gl_rcenter, &gl_rfs);
 
     /* return exit button */
-    *pbutton = inf_what(tree, FSOK, FSCANCEL);
+    *pbutton = inf_what(tree, FSOK);
     dos_free(memblk);
 
     return TRUE;

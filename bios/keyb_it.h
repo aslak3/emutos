@@ -1,7 +1,7 @@
 /*
  * keyb_it.h - keyboard layout definition
  *
- * Copyright (C) 2011-2019 The EmuTOS development team
+ * Copyright (C) 2011-2020 The EmuTOS development team
  *
  * Authors:
  *  L. Zanier
@@ -67,7 +67,7 @@ static const UBYTE keytbl_it_caps[] = {
        0,    0,    0,    0,    0,    0,    0,    0,
 };
 
-/* Alt Tables iaw Keyboard.tbl format as defined in SpareMiNT Wiki */
+/* Alt Tables format as defined in SpareMiNT Wiki */
 
 static const UBYTE keytbl_it_altnorm[] = {
     0x1A, '[',

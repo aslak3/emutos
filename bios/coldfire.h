@@ -1,7 +1,7 @@
 /*
  * coldfire.h - ColdFire specific functions
  *
- * Copyright (C) 2013-2019 The EmuTOS development team
+ * Copyright (C) 2013-2021 The EmuTOS development team
  *
  * Authors:
  *  VRI   Vincent Rivière
@@ -20,8 +20,6 @@ void coldfire_early_init(void);
 #if CONF_WITH_COLDFIRE_RS232
 BOOL coldfire_rs232_can_write(void);
 void coldfire_rs232_write_byte(UBYTE b);
-BOOL coldfire_rs232_can_read(void);
-UBYTE coldfire_rs232_read_byte(void);
 #endif
 
 #if CONF_COLDFIRE_TIMER_C
@@ -42,11 +40,9 @@ void firebee_pic_write_byte(UBYTE b);
 void firebee_shutdown(void);
 #endif /* MACHINE_FIREBEE */
 
-#if CONF_SERIAL_CONSOLE
 void coldfire_rs232_enable_interrupt(void);
 void coldfire_rs232_interrupt_handler(void);
 void coldfire_int_35(void); /* In coldfire2.S */
-#endif /* CONF_SERIAL_CONSOLE */
 
 /*
  *  Structure pointed by the '_MCF' cookie's value

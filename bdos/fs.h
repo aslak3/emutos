@@ -2,7 +2,7 @@
  * fs.h - file system defines
  *
  * Copyright (C) 2001 Lineo, Inc.
- *               2002-2019 The EmuTOS development team
+ *               2002-2020 The EmuTOS development team
  *
  * Authors:
  *  JSL   Jason S. Loveman
@@ -29,7 +29,6 @@
  *  constants
  */
 
-#define SLASH '\\'
 #define FNAMELEN    (LEN_ZNODE+LEN_ZEXT)    /* as found in dirs etc */
 
 /*
@@ -239,7 +238,8 @@ struct _dmd         /* drive media block */
 
     OFD    *m_ofl;      /*  list of open files                  */
     DND    *m_dtl;      /* root of directory tree list          */
-    UWORD  m_16;        /* 16 bit fat ?                         */
+    UBYTE  m_16;        /* 16 bit fat ?                         */
+    UBYTE  m_1fat;      /* 1 FAT only ?                         */
 } ;
 
 
@@ -345,10 +345,10 @@ extern  FTAB    sft[];
  */
 
 /* check the drive, see if it needs to be logged in. */
-long ckdrv(int d, BOOL checkrem);
+WORD ckdrv(int d, BOOL checkrem);
 
 /* log in media 'b' on drive 'drv'. */
-long log_media(BPB *b, int drv);
+WORD log_media(BPB *b, int drv);
 
 /*
  * in fshand.c
@@ -415,6 +415,8 @@ long eof(int h);
 /* seek to byte position n on file with handle h */
 long xlseek(long n, int h, int flg);
 long ixlseek(OFD *p, long n);
+
+FCB *ixgetfcb(OFD *p);
 
 long xread(int h, long len, void *ubufr);
 long ixread(OFD *p, long len, void *ubufr);

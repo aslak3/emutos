@@ -23,12 +23,15 @@ es - Spanish
 fi - Finnish
 fr - French
 gr - Greek
+hu - Hungarian
 it - Italian
 nl - Dutch
 no - Norwegian
+pl - Polish
 ru - Russian
 se - Swedish
 cd - Swiss German
+tr - Turkish
 us - English (US)
 uk - English (UK)
 

@@ -1,7 +1,7 @@
 /*
  * biosext.h - EmuTOS BIOS extensions not callable with trap
  *
- * Copyright (C) 2016-2019 The EmuTOS development team
+ * Copyright (C) 2016-2021 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -41,7 +41,14 @@ extern UBYTE bootflags;
 #define BOOTFLAG_SKIP_HDD_BOOT 0x02
 #define BOOTFLAG_SKIP_AUTO_ACC 0x04
 
-ULONG initial_vram_size(void);
+/* Video RAM stuff */
+#if CONF_WITH_VIDEL
+extern LONG video_ram_size;
+extern void *video_ram_addr;
+#endif
+ULONG calc_vram_size(void);
+#define EXTRA_VRAM_SIZE 256UL   /* amount to overallocate, like Atari TOS */
+
 void flush_data_cache(void *start, long size);
 void invalidate_data_cache(void *start, long size);
 void invalidate_instruction_cache(void *start, long size);
@@ -69,7 +76,6 @@ extern void (*mousexvec)(WORD scancode);    /* Additional mouse buttons */
 #endif
 
 /* Line A extensions */
-extern struct _mcs *mcs_ptr; /* ptr to mouse cursor save area in use */
 extern UBYTE v_planes_shift; /* pixel to address helper */
 
 /* determine monitor type, ... */
@@ -78,6 +84,7 @@ WORD get_palette(void);
 void get_pixel_size(WORD *width,WORD *height);
 int rez_changeable(void);
 WORD check_moderez(WORD moderez);
+void initialise_palette_registers(WORD rez,WORD mode);
 
 /* RAM-copies of the ROM-fontheaders. See bios/fntxxx.c */
 extern struct font_head fon6x6;

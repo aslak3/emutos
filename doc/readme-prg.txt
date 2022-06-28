@@ -1,7 +1,7 @@
 EmuTOS - PRG versions
 
-These special versions allow EmuTOS to be loaded from the filesystem (floppy
-or hard disk) without the need of replacing the system ROM.
+These special versions allow EmuTOS to be loaded from the filesystem
+(floppy or hard disk) without needing to replace the system ROM.
 This is the simplest way to test EmuTOS on real hardware.
 The drawback is less available RAM compared to ROM versions.
 
@@ -12,12 +12,15 @@ emutoses.prg - Spanish (PAL)
 emutosfi.prg - Finnish (PAL)
 emutosfr.prg - French (PAL)
 emutosgr.prg - Greek (PAL)
+emutoshu.prg - Hungarian (PAL)
 emutosit.prg - Italian (PAL)
 emutosnl.prg - Dutch (PAL)
 emutosno.prg - Norwegian (PAL)
+emutospl.prg - Polish (PAL)
 emutosru.prg - Russian (PAL)
 emutosse.prg - Swedish (PAL)
 emutossg.prg - Swiss German (PAL)
+emutostr.prg - Turkish (PAL)
 emutosuk.prg - English (PAL)
 emutosus.prg - English (NTSC)
 
@@ -36,7 +39,7 @@ Notes:
 - when using these versions with a Magnum ST/STE alt-RAM card, the Magnum
   driver for TOS must not have been loaded before running emutos*.prg
 
-For multilanguage version, the default language is English.
+For the multilanguage version, the default language is English.
 It can be changed by setting the NVRAM appropriately.
 
 These special versions have been built using:

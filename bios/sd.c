@@ -1,7 +1,7 @@
 /*
  * sd.c - SD/MMC card routines
  *
- * Copyright (C) 2013-2019 The EmuTOS development team
+ * Copyright (C) 2013-2021 The EmuTOS development team
  *
  * Authors:
  *  RFB   Roger Burrows
@@ -18,7 +18,6 @@
 #include "blkdev.h"
 #include "delay.h"
 #include "gemerror.h"
-#include "mfp.h"
 #include "sd.h"
 #include "spi.h"
 #include "string.h"

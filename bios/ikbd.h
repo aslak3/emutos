@@ -1,7 +1,7 @@
 /*
  * ikbd.h - Intelligent keyboard routines
  *
- * Copyright (C) 2001-2019 The EmuTOS development team
+ * Copyright (C) 2001-2021 The EmuTOS development team
  *
  * Authors:
  *  LVL   Laurent Vogel
@@ -128,7 +128,7 @@ void call_mousevec(SBYTE *packet);
 #ifdef MACHINE_AMIGA
 void call_joyvec(UBYTE *packet);
 #endif
-#if CONF_WITH_FLEXCAN || CONF_SERIAL_IKBD
+#if CONF_WITH_FLEXCAN || CONF_SERIAL_IKBD || defined(MACHINE_LISA)
 void call_ikbdraw(UBYTE b);
 #endif
 

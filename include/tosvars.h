@@ -1,7 +1,7 @@
 /*
  * tosvars.h - declarations of low-memory system variables
  *
- * Copyright (C) 2001-2019 The EmuTOS development team
+ * Copyright (C) 2001-2021 The EmuTOS development team
  *
  * Authors:
  *  LVL   Laurent Vogel
@@ -63,7 +63,7 @@ extern WORD nvbls; /* Number of slots in the array pointed by vblqueue */
 extern volatile WORD vblsem;
 extern PFVOID *vblqueue; /* Pointer to the VBL queue array */
 extern volatile LONG frclock;
-extern LONG *p_cookies;
+extern struct cookie *p_cookies;
 extern WORD save_row;     /* saved row in escape Y command */
 
 extern const OSHEADER *sysbase;
@@ -82,6 +82,8 @@ extern LONG savptr;
 
 extern struct _md themd;  /* BIOS memory descriptor */
 extern struct _bcb *bufl[2]; /* buffer lists - two lists:  FAT and dir/data */
+
+extern void (*con_state)(WORD); /* state of conout state machine */
 
 extern void (*prt_stat)(void);
 extern void (*prt_vec)(void);

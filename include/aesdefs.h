@@ -1,7 +1,7 @@
 /*
  * aesdefs.h - Public definitions for AES system calls
  *
- * Copyright (C) 2019 The EmuTOS development team
+ * Copyright (C) 2019-2021 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -39,11 +39,10 @@
 #define MENU_TNORMAL    33
 #define MENU_TEXT       34
 #define MENU_REGISTER   35
-#define MENU_UNREGISTER 36      /* PC-GEM function */
-#define MENU_CLICK      37      /* PC-GEM function */
 #define MENU_POPUP      36      /* AES 3.30 function */
 #define MENU_ATTACH     37      /* AES 3.30 function */
 #define MENU_ISTART     38      /* AES 3.30 function */
+#define MENU_SETTINGS   39      /* AES 3.30 function */
 
 /* Object Manager */
 #define OBJC_ADD        40
@@ -54,6 +53,7 @@
 #define OBJC_ORDER      45
 #define OBJC_EDIT       46
 #define OBJC_CHANGE     47
+#define OBJC_SYSVAR     48      /* AES 3.40 function */
 
 /* Form Manager */
 #define FORM_DO         50
@@ -259,12 +259,14 @@
 #define MU_M2       0x0008
 #define MU_MESAG    0x0010
 #define MU_TIMER    0x0020
+#define MU_TOSVALID 0x003F      /* valid bits for TOS compatibility */
+#define MU_M3       0x0100      /* internal use only */
 
 
 /*
  * menu library parameters
  */
-#define MM_ITREE    addr_in[0]              /* ienable, icheck, tnorm */
+#define MM_ITREE    addr_in[0]              /* ienable, icheck, tnormal */
 
 #define MM_PSTR     addr_in[0]
 
@@ -274,14 +276,27 @@
 
 #define ITEM_NUM    int_in[0]               /* icheck, ienable */
 #define MM_PID      int_in[0]               /* register */
-#define MM_MID      int_in[0]               /* unregister */
 #define CHECK_IT    int_in[1]               /* icheck */
 #define ENABLE_IT   int_in[1]               /* ienable */
-#define MN_CLICK    int_in[0]
-#define MN_SETIT    int_in[1]
 
-#define TITLE_NUM   int_in[0]               /* tnorm */
+#define TITLE_NUM   int_in[0]               /* tnormal */
 #define NORMAL_IT   int_in[1]               /* tnormal */
+
+#define MPOP_IN     addr_in[0]              /* menu library extensions */
+#define MPOP_OUT    addr_in[1]
+#define MPOP_XPOS   int_in[0]
+#define MPOP_YPOS   int_in[1]
+
+#define MPOP_FLAG   int_in[0]
+#define MPOP_ITEM   int_in[1]
+#define MPOP_SET    addr_in[0]
+
+#define MPOP_ITEM2  int_in[2]
+
+/* flag: menu_attach() */
+#define ME_INQUIRE  0
+#define ME_ATTACH   1
+#define ME_REMOVE   2
 
 
 /*
@@ -330,7 +345,7 @@
 /*
  * object library parameters
  */
-#define OB_TREE     addr_in[0]              /* all ob procedures */
+#define OB_TREE     addr_in[0]              /* all ob procedures (except ob_sysvar) */
 
 #define OB_DELOB    int_in[0]               /* ob_delete */
 
@@ -360,6 +375,13 @@
 
 #define OB_NEWSTATE int_in[6]               /* ob_change */
 #define OB_REDRAW   int_in[7]
+
+#define OB_MODE     int_in[0]               /* ob_sysvar */
+#define OB_WHICH    int_in[1]
+#define OB_I1       int_in[2]
+#define OB_I2       int_in[3]
+#define OB_O1       int_out[1]
+#define OB_O2       int_out[2]
 
 
 /*
@@ -410,6 +432,22 @@
 #define USER_DEF    255
 #define M_OFF       256
 #define M_ON        257
+/* the following were added in AES 3.20 */
+#define M_SAVE      258     /* save current mouse form in AESPD */
+#define M_RESTORE   259     /* restore saved mouse form from AESPD */
+#define M_PREVIOUS  260     /* restore previously-used global mouse form */
+
+/* mouse form used by graf_mouse() etc */
+typedef struct mform
+{
+        WORD    mf_xhot;
+        WORD    mf_yhot;
+        WORD    mf_nplanes;
+        WORD    mf_bg;          /* mask colour index */
+        WORD    mf_fg;          /* data colour index */
+        UWORD   mf_mask[16];
+        UWORD   mf_data[16];
+} MFORM;
 
 
 /*
@@ -509,6 +547,8 @@
 #define WF_HSLSIZ   15
 #define WF_VSLSIZ   16
 #define WF_SCREEN   17
+#define WF_COLOR    18
+#define WF_DCOLOR   19
 
 /* request type: wind_calc() */
 #define WC_BORDER   0

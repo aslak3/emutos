@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) 2019 The EmuTOS development team
+# Copyright (C) 2019-2021 The EmuTOS development team
 #
 # Authors:
 #  THH   Thomas Huth
@@ -64,7 +64,7 @@ check_cookie "_CPU" "0x00000028"
 check_cookie "_VDO" "0x00030000"
 check_cookie "_FPU" "0x00080000"
 check_cookie "_MCH" "0x00050000"
-check_cookie "_SND" "0x00000017"
+check_cookie "_SND" "0x0000001f"
 echo "OK"
 
 rm -f COOKIES.TXT

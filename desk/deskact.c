@@ -3,7 +3,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2019 The EmuTOS development team
+*                 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -335,9 +335,13 @@ static void gr_drgplns(WORD in_mx, WORD in_my, GRECT *pc,
         obj = tree + *pdobj;
         if (!(obj->ob_state & SELECTED))
         {
-            pa = i_find(dst_wh, *pdobj, NULL, NULL);
+            BOOL isapp;
+            pa = i_find(dst_wh, *pdobj, NULL, &isapp);
             if (pa)
             {
+                /* don't highlight plain files */
+                if ((pa->a_type == AT_ISFILE) && !isapp)
+                    continue;
                 curr_wh = dst_wh;
                 curr_root = root;
                 curr_sel = *pdobj;
@@ -377,7 +381,7 @@ static WORD act_chkobj(OBJECT *tree, WORD root, WORD obj, WORD mx, WORD my, WORD
     oy = tree[root].ob_y + tree[obj].ob_y;
 
     view = (root == DROOT) ? V_ICON : G.g_iview;
-    switch( view )
+    switch(view)
     {
     case V_TEXT:
         r_set(&t, ox, oy, LEN_FNODE * gl_wchar, gl_hchar);

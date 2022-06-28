@@ -1,7 +1,7 @@
 /*
  * amiga.c - Amiga specific functions
  *
- * Copyright (C) 2013-2019 The EmuTOS development team
+ * Copyright (C) 2013-2020 The EmuTOS development team
  *
  * Authors:
  *  VRI   Vincent Rivière
@@ -1804,7 +1804,7 @@ static UWORD get_crc_ccitt(const void *buffer, UWORD length)
  * Basically, first bit is a useless filler, second bit is the data bit.
  *
  * Documentation:
- * http://jlgconsult.pagesperso-orange.fr/Atari/diskette/diskette_en.htm#MFM_Address_Marks
+ * https://jlgconsult.pagesperso-orange.fr/Atari/diskette/diskette_en.htm#MFM_Address_Marks
  * https://en.wikipedia.org/wiki/Modified_Frequency_Modulation
  */
 static UBYTE decode_mfm(const UWORD **ppmfm)
@@ -2442,7 +2442,7 @@ static BOOL ReadExpansionRom(APTR board, struct ConfigDev *configDev)
         UBYTE subsizebits = configDev->cd_Rom.er_Flags & ERT_Z3_SSMASK;
         if (subsizebits < 2)
         {
-            // Nothing
+            /* Nothing */
             if (subsizebits == 1)
                 KDEBUG(("configDev=%p size=0x%08lx subsizebits=%u: Actual size will be probed later\n",
                     configDev, size, subsizebits));
@@ -2835,7 +2835,7 @@ void amiga_autoconfig(void)
         AddConfigDev(configDev);
     }
 
-    /* Intialize internal drivers for detected boards */
+    /* Initialize internal drivers for detected boards */
     init_expansion_drivers();
 
     KDEBUG(("**************** AUTOCONFIG DONE ****************\n"));

@@ -1,7 +1,7 @@
 /*
  * tosvars.ld - TOS system variables
  *
- * Copyright (C) 2005-2017 The EmuTOS development team
+ * Copyright (C) 2005-2021 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -74,7 +74,7 @@ _themd          = 0x48e;        /* first memory descriptor block */
 ____md          = 0x49e;        /* space for additional memory descriptors */
 _savptr         = 0x4a2;        /* pointer to BIOS save register block */
 _nflops         = 0x4a6;        /* number of connected floppy drives */
-con_state       = 0x4a8;        /* vector for screen output */
+_con_state      = 0x4a8;        /* vector for screen output */
 _save_row       = 0x4ac;        /* temporary storage for cursor line pos. */
 sav_context     = 0x4ae;        /* ptr to save area for exception processing */
 _bufl           = 0x4b2;        /* pointers to buffer ctrl blocks for GEMDOS */
@@ -121,7 +121,12 @@ _warm_magic     = 0x6fc;        /* set to WARM_MAGIC if next boot must not */
 #endif
 
 #if CONF_WITH_68030_PMMU
-_pmmutree       = PMMUTREE_ADDRESS_68030;   /* for pmmu tree on 68030 */
+/*
+ * This is where the 68030 PMMU tree is built.
+ * Unless you really understand the implications, don't change this value!
+ */
+_pmmutree       = 0x700;        /* for pmmu tree on 68030 */
+ASSERT((ABSOLUTE(_pmmutree) & 0xf) == 0, "error: bad _pmmutree alignment");
 #endif
 
 /*

@@ -1,7 +1,7 @@
 /*
  * nvram.c - Non-Volatile RAM access
  *
- * Copyright (C) 2001-2019 The EmuTOS development team
+ * Copyright (C) 2001-2020 The EmuTOS development team
  *
  * Authors:
  *  LVL     Laurent Vogel
@@ -44,7 +44,7 @@ const UBYTE nvram_init[] = { 0x00, 0x2f, 0x20, 0xff, 0xff, 0xff };
 int has_nvram;
 
 /*
- * detect_nvram - detect the nvram
+ * detect_nvram - detect the NVRAM
  */
 void detect_nvram(void)
 {

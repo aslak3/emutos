@@ -2,7 +2,7 @@
 /*      changed NUM_WOBS from 128 to 300        11/19/87        mdf     */
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2019 The EmuTOS development team
+*                 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -27,7 +27,7 @@
  * actually requires about 50 bytes, so 400 pixels should be enough,
  * but for now we stick with standard Atari resolutions
  */
-#define USE_WIDE_FORMAT()   (G.g_wdesk >= 640)
+#define USE_WIDE_FORMAT()   (G.g_desk.g_w >= 640)
 
 /*
  * total length of highlighted text for selected files in
@@ -59,7 +59,7 @@ struct _windnode
 {
         WNODE           *w_next;            /* -> next 'highest' window */
         UWORD           w_flags;                /* see above */
-        WORD            w_id;                   /* window handle id #   */
+        WORD            w_id;                   /* AES window handle (0 => not in use) */
         WORD            w_obid;                 /* desktop object id    */
         WORD            w_root;                 /* pseudo root object in G.g_screen */
                                                 /*  for this window's objects       */
@@ -74,7 +74,7 @@ struct _windnode
 /*
  * the following array must be large enough to hold the sprintf-formatted
  * output of the longest translated version of the STINFOST/STINFST2 resource item.
- * as of december 2014, this is 51 bytes for the Greek-language version.
+ * as of august 2020, this is 68 bytes for the Greek-language version of STINFST2.
  */
         char            w_info[72];
 };
@@ -89,7 +89,7 @@ WNODE *win_alloc(WORD obid);
 WNODE *win_find(WORD wh);
 void win_top(WNODE *thewin);
 WNODE *win_ontop(void);
-void win_bldview(WNODE *pwin, WORD x, WORD y, WORD w, WORD h);
+void win_bldview(WNODE *pwin, GRECT *r);
 void win_slide(WORD wh, BOOL horizontal, WORD sl_value);
 void win_arrow(WORD wh, WORD arrow_type);
 void win_srtall(void);

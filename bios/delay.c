@@ -4,7 +4,7 @@
  * note that the timings are quite imprecise (but conservative) unless
  * you are running on at least a 32MHz 68030 processor
  *
- * Copyright (C) 2013-2019 The EmuTOS development team
+ * Copyright (C) 2013-2021 The EmuTOS development team
  *
  * Authors:
  *  RFB    Roger Burrows
@@ -13,6 +13,7 @@
  * option any later version.  See doc/license.txt for details.
  */
 #include "emutos.h"
+#include "biosdefs.h"
 #include "mfp.h"
 #include "serport.h"
 #include "processor.h"
@@ -27,8 +28,6 @@
 #define LOOPS_68000         760     /* 68000 timing assumes 16MHz */
 
 #define CALIBRATION_TIME    100     /* target # millisecs to run calibration */
-
-#define TIMERD_INTNUM       4       /* for jdisint() etc */
 
 /*
  * global variables
@@ -51,7 +50,7 @@ void calibration_timer(void);
  */
 void init_delay(void)
 {
-#if defined (MACHINE_FIREBEE) || defined (MACHINE_M548X)
+#if defined(MACHINE_FIREBEE) || defined(MACHINE_M548X)
     loopcount_1_msec = SDCLK_FREQUENCY_MHZ * 1000;
 #else
 # if CONF_WITH_APOLLO_68080
@@ -92,7 +91,7 @@ void calibrate_delay(void)
     /*
      * disable interrupts then run the calibration
      */
-    jdisint(TIMERD_INTNUM);
+    jdisint(MFP_TIMERD);
     loopcount = CALIBRATION_TIME * loopcount_1_msec;
     intcount = run_calibration(loopcount);
 
@@ -100,8 +99,8 @@ void calibrate_delay(void)
      * disable interrupts then restore the RS232
      * serial port stuff (in case we're using it)
      */
-    jdisint(TIMERD_INTNUM);
-    rsconf1(B9600, 0, 0x88, 1, 1, 0);   /* just like init_serport() */
+    jdisint(MFP_TIMERD);
+    rsconf1(DEFAULT_BAUDRATE, 0, 0x88, 1, 1, 0);   /* just like init_serport() */
 
     /*
      * intcount is the number of interrupts that occur during 'loopcount'

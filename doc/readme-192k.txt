@@ -8,7 +8,7 @@ These ROMs are suitable for the following hardware:
 Unlike other ROM versions, they do NOT autodetect extra hardware, and might not
 work on machines with additional hardware. For example, they don't work under
 the Hatari emulator's Falcon emulation due to missing VIDEL support.
-Also, they only work with plain 68000 CPU.
+Also, they only work with a plain 68000 CPU.
 
 Each ROM contains a single language:
 
@@ -18,12 +18,15 @@ etos192es.img - Spanish (PAL)
 etos192fi.img - Finnish (PAL)
 etos192fr.img - French (PAL)
 etos192gr.img - Greek (PAL)
+etos192hu.img - Hungarian (PAL)
 etos192it.img - Italian (PAL)
 etos192nl.img - Dutch (PAL)
 etos192no.img - Norwegian (PAL)
+etos192pl.img - Polish (PAL)
 etos192ru.img - Russian (PAL)
 etos192se.img - Swedish (PAL)
 etos192sg.img - Swiss German (PAL)
+etos192tr.img - Turkish (PAL)
 etos192us.img - English (NTSC)
 etos192uk.img - English (PAL)
 

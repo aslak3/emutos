@@ -2,7 +2,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2011-2019 The EmuTOS development team
+*                 2011-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -37,14 +37,6 @@
 #define IP_5PATT    5
 #define IP_6PATT    6
 #define IP_SOLID    7
-
-#define SYS_FG      0x1100      /* system foreground and background rules */
-                                /*   but transparent                      */
-
-#define WTS_FG      0x11a1      /* window title selected using pattern 2 */
-                                /*  & replace mode text                  */
-
-#define WTN_FG      0x1100      /* window title normal */
 
 #define MD_REPLACE  1           /* gsx modes */
 #define MD_TRANS    2
@@ -85,6 +77,7 @@
 #define G_FBOXTEXT  30
 #define G_ICON      31
 #define G_TITLE     32
+#define G_CICON     33
 
 #define NONE        0x0000      /* Object flags */
 #define SELECTABLE  0x0001
@@ -96,6 +89,13 @@
 #define TOUCHEXIT   0x0040
 #define HIDETREE    0x0080
 #define INDIRECT    0x0100
+#define FL3DOBJ     0x0200          /* bit flag for 3D indicator OR activator */
+#define FL3DMASK    0x0600
+#define  FL3DNONE   0x0000          /* no 3D effect */
+#define  FL3DIND    0x0200          /* 3D indicator */
+#define  FL3DACT    0x0600          /* 3D activator */
+#define  FL3DBAK    0x0400          /* 3D backgound */
+#define SUBMENU     0x0800
 
 #define NORMAL      0x0000      /* Object states */
 #define SELECTED    0x0001
@@ -105,7 +105,6 @@
 #define OUTLINED    0x0010
 #define SHADOWED    0x0020
 #define WHITEBAK    0x0040
-#define DRAW3D      0x0080
 
 #define WHITE       0           /* Object colors */
 #define BLACK       1
@@ -126,6 +125,17 @@
 
 #define FILLPAT_MASK    0x00000070L /* obspec colour word masks */
 #define FILLCOL_MASK    0x0000000fL
+
+#define LK3DIND     1           /* ob_which values used with objc_sysvar() */
+#define LK3DACT     2
+#define INDBUTCOL   3
+#define ACTBUTCOL   4
+#define BACKGRCOL   5
+#define AD3DVALUE   6
+
+#define ADJ3DSTD    2           /* standard pixel adjustment for 3D objects */
+#define ADJ3DOUT    3           /* pixel adjustment for 3D OUTLINED objects */
+#define ADJ3DSHA    2           /* pixel adjustment for 3D SHADOWED objects */
 
 typedef struct
 {
@@ -188,6 +198,22 @@ typedef struct
         WORD    ib_wtext;
         WORD    ib_htext;
 } ICONBLK;
+
+typedef struct _CICON
+{
+        WORD    num_planes;     /* number of planes for this version */
+        WORD    *col_data;      /* ptrs to colour icon mask & data */
+        WORD    *col_mask;
+        WORD    *sel_data;      /* ptrs to optional icon/mask for SELECTED state */
+        WORD    *sel_mask;
+        struct  _CICON *next_res;
+} CICON;
+
+typedef struct
+{
+        ICONBLK monoblk;        /* mono version of icon */
+        CICON   *mainlist;
+} CICONBLK;
 
 typedef struct
 {

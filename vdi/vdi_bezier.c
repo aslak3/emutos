@@ -1,8 +1,12 @@
 /*
- * bezier.c - Fast Bézier approximation using four control points.
+ * vdi_bezier.c - implementation of Bézier functions for EmuTOS VDI
+ *
+ * These use a fast Bézier approximation using four control points.
+ * Note: At this time (August 2020), all Bézier functions are disabled;
+ * none have been tested recently.
  *
  * Copyright 1998-2002, Trevor Blight
- * Copyright 2004-2019 The EmuTOS development team
+ * Copyright 2004-2020 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.

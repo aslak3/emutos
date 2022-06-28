@@ -1,7 +1,7 @@
 /*
  * vdi_esc.c - GSX escapes for the VDI screen driver
  *
- * Copyright (C) 2002-2019 The EmuTOS development team
+ * Copyright (C) 2002-2021 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -14,6 +14,7 @@
 #include "lineavars.h"
 #include "asm.h"
 #include "bdosbind.h"
+#include "xbiosbind.h"
 
 
 /* Local Constants */
@@ -82,10 +83,13 @@ static void escfn2(Vwk * vwk)
 
 /*
  * escfn3: v_enter_cur() - enter alpha mode and exit graphics mode
+ *
+ * note: we send a CR to reset the BDOS column counter (important for
+ * tab expansion)
  */
 static void escfn3(Vwk * vwk)
 {
-    cconws("\033E\033e");       /* clear-and-home, then show alpha cursor */
+    cconws("\033E\033e\015");   /* clear-and-home, then show alpha cursor */
 }
 
 
@@ -248,10 +252,11 @@ static void escfn16(Vwk * vwk)
 /*
  * escfn17: v_hardcopy() - output screen to printer
  *
- * This function is currently just a stub.
+ * we call the standard xbios screen dump
  */
 static void escfn17(Vwk * vwk)
 {
+    Scrdmp();
 }
 
 

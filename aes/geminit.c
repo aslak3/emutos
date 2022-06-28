@@ -6,7 +6,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2019 The EmuTOS development team
+*                 2002-2021 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -25,12 +25,12 @@
 #include "obdefs.h"
 #include "struct.h"
 #include "gemlib.h"
-#include "gsxdefs.h"
 #include "gem_rsc.h"
 #include "mforms.h"
 #include "xbiosbind.h"
 #include "has.h"
 #include "biosext.h"
+#include "miscutil.h"
 
 #include "gemgsxif.h"
 #include "gemdosif.h"
@@ -47,7 +47,9 @@
 #include "gemasm.h"
 #include "gemaplib.h"
 #include "geminput.h"
+#include "gemmnext.h"
 #include "gemmnlib.h"
+#include "gemoblib.h"
 #include "geminit.h"
 #include "optimize.h"
 #include "aesdefs.h"
@@ -122,6 +124,9 @@ GLOBAL char     *ad_envrn;              /* initialized in GEMSTART      */
 GLOBAL MFORM    *mouse_cursor[NUM_MOUSE_CURSORS];
 
 GLOBAL MFORM    gl_mouse;
+#if CONF_WITH_GRAF_MOUSE_EXTENSION
+GLOBAL MFORM    gl_prevmouse;           /* previous AES  mouse form */
+#endif
 
 GLOBAL AESPD    *rlr, *drl, *nrl;
 GLOBAL EVB      *eul, *dlr, *zlr;
@@ -308,19 +313,6 @@ static void load_accs(WORD n)
     for (i = 0; i < n; i++)
         load_one_acc(&acc[i]);
 }
-
-
-/*
- *  Set default desktop path (root of current drive)
- */
-static void sh_curdir(char *ppath)
-{
-    *ppath++ = dos_gdrv() + 'A';
-    *ppath++ = ':';
-    *ppath++ = '\\';
-    *ppath = '\0';
-}
-
 
 /*
  *  Routine to read in the start of a file
@@ -529,6 +521,11 @@ static void setup_mouse_cursors(void)
     for (i = 0; i < NUM_MOUSE_CURSORS; i++)
         mouse_cursor[i] = (MFORM *)mform_rs_data[i];
 
+#if CONF_WITH_GRAF_MOUSE_EXTENSION
+    /* init mouse form so that first gsx_mfset() will populate gl_prevmouse */
+    gl_mouse = *(mouse_cursor[HOURGLASS]);
+#endif
+
 #if CONF_WITH_LOADABLE_CURSORS
     /* Do not load user cursors if Control was held on startup */
     if (bootflags & BOOTFLAG_SKIP_AUTO_ACC)
@@ -627,7 +624,7 @@ void wait_for_accs(WORD bitmask)
                 break;                  /* must go round again */
         }
     }
-    KDEBUG(("wait_for_accs(): %s took too long\n",pd->p_name));
+    KDEBUG(("wait_for_accs(): %8.8s took too long\n",pd->p_name));
 }
 
 
@@ -677,6 +674,14 @@ void run_accs_and_desktop(void)
 
     gsx_init();                     /* do gsx open work station */
 
+#if CONF_WITH_MENU_EXTENSION
+    mnext_init();                   /* initialise menu library extension variables */
+#endif
+
+#if CONF_WITH_3D_OBJECTS
+    init_3d();                      /* initialise 3D-related variables */
+#endif
+
     sh_put(CP_SHELL_INIT,sizeof(CP_SHELL_INIT)-1);  /* see description at top */
 
     load_accs(num_accs);            /* load up to 'num_accs' desk accessories */
@@ -684,7 +689,7 @@ void run_accs_and_desktop(void)
     /* fix up icons */
     for (i = 0; i < 3; i++) {
         bi = rs_bitblk[NOTEBB+i];
-        gsx_trans(bi.bi_pdata, bi.bi_wb, bi.bi_pdata, bi.bi_wb, bi.bi_hl);
+        gsx_trans(bi.bi_pdata, bi.bi_wb, bi.bi_hl);
     }
 
     /* take the critical err handler int. */
@@ -725,7 +730,7 @@ void run_accs_and_desktop(void)
 
     wm_start();                     /* initialise window vars */
     fs_start();                     /* startup gem libs */
-    sh_curdir(D.s_cdir);            /* remember current desktop directory */
+    build_root_path(D.s_cdir, 'A'+dos_gdrv());  /* root of current drive */
     isgem = process_inf2(&isauto);  /* process emudesk.inf part 2 */
 
     dsptch();                       /* off we go !!! */
@@ -747,11 +752,25 @@ void run_accs_and_desktop(void)
 #if CONF_WITH_ATARI_VIDEO || defined(MACHINE_AMIGA)
 /*
  * change resolution & reinitialise the palette registers
+ *
+ * note: passing a screen address of 0L to Setscreen() means reallocate
+ * screen memory.  on non-Falcon systems (where the size of screen memory
+ * is fixed), this is effectively the same as passing an address of -1L,
+ * and our implementation of Setscreen() handles this without problems.
+ *
+ * however, if someone has hooked Setscreen() and does not understand
+ * this, passing a screen address of 0L will set the screen address to
+ * NULL, and the system will crash.  this happens, for example, when
+ * running NVDI 4.11 on a Mega ST.
+ *
+ * therefore, for safety, we only use 0L on explicitly Falcon resolutions.
  */
 static void new_resolution(WORD rez, WORD videlmode)
 {
-    Setscreen(-1L, -1L, rez, videlmode);        /* change resolution */
-    Setscreen(-1L, -1L, 0xc000|rez, videlmode); /* init palette regs */
+    LONG addr = (rez==FALCON_REZ) ? 0L : -1L;
+
+    Setscreen(addr, addr, rez, videlmode);      /* change resolution */
+    initialise_palette_registers(rez, videlmode);
 }
 #endif
 
@@ -790,7 +809,7 @@ void gem_main(void)
             break;
 #endif
         }
-        gsx_wsclear();              /* avoid artefacts that may show briefly */
+        gsx_wsclear();              /* avoid artifacts that may show briefly */
         /*
          * resolution change always resets the default drive to the
          * boot device.  TOS3 issues a Dsetdrv() when this happens,

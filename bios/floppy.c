@@ -1,7 +1,7 @@
 /*
  * floppy.c - floppy routines
  *
- * Copyright (C) 2001-2019 The EmuTOS development team
+ * Copyright (C) 2001-2021 The EmuTOS development team
  *
  * Authors:
  *  LVL   Laurent Vogel
@@ -31,9 +31,8 @@
 #include "biosext.h"    /* for cache control routines */
 #include "cookie.h"
 #include "intmath.h"
-#ifdef MACHINE_AMIGA
 #include "amiga.h"
-#endif
+#include "lisa.h"
 
 
 /*==== Introduction =======================================================*/
@@ -321,6 +320,8 @@ void flop_hdv_init(void)
     nflops = 0;
 #ifdef MACHINE_AMIGA
     amiga_floppy_init();
+#elif defined(MACHINE_LISA)
+    lisa_floppy_init();
 #endif
     flop_init(0);
     flop_init(1);
@@ -377,7 +378,7 @@ static void flop_add_drive(WORD dev)
     b->mediachange = MEDIACHANGE;
     b->start = 0;
     b->size = 0;                /* unknown size */
-    b->geometry.sides = 2;      /* default geometry of 3.5" DD */
+    b->geometry.sides = 1;      /* default geometry of 3.5" 1S DD */
     b->geometry.spt = 9;
     b->unit = dev;
     b->bpb.recsiz = SECTOR_SIZE;
@@ -398,6 +399,14 @@ static void flop_detect_drive(WORD dev)
 
 #ifdef MACHINE_AMIGA
     if (amiga_flop_detect_drive(dev)) {
+        flop_add_drive(dev);
+        units[dev].last_access = hz_200;
+    }
+    return;
+#endif
+
+#ifdef MACHINE_LISA
+    if (lisa_flop_detect_drive(dev)) {
         flop_add_drive(dev);
         units[dev].last_access = hz_200;
     }
@@ -450,6 +459,8 @@ LONG flop_mediach(WORD dev)
 
 #ifdef MACHINE_AMIGA
     return amiga_flop_mediach(dev);
+#elif defined(MACHINE_LISA)
+    return lisa_flop_mediach(dev);
 #endif
 
     fi = &finfo[dev];
@@ -1074,6 +1085,9 @@ static WORD flopio(UBYTE *userbuf, WORD rw, WORD dev,
 
 #ifdef MACHINE_AMIGA
     err = amiga_floprw(userbuf, rw, dev, sect, track, side, count);
+    units[dev].last_access = hz_200;
+#elif defined(MACHINE_LISA)
+    err = lisa_floprw(userbuf, rw, dev, sect, track, side, count);
     units[dev].last_access = hz_200;
 #elif CONF_WITH_FDC
     floplock(dev);

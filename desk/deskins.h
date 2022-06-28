@@ -1,7 +1,7 @@
 /*
- * EmuTOS desktop
+ * deskins.h - header for EmuDesk's deskins.c
  *
- * Copyright (C) 2002-2019 The EmuTOS development team
+ * Copyright (C) 2002-2021 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -18,7 +18,7 @@
 #define NUM_FUNKEYS     (LAST_FUNKEY-FIRST_FUNKEY+1)
 
 WORD is_installed(ANODE *pa);
-WORD ins_app(WORD curr);
+WORD ins_app(void);
 BOOL ins_devices(void);
 WORD ins_icon(WORD sobj);
 void ins_shortcut(WORD wh, WORD mx, WORD my);

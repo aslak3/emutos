@@ -1,7 +1,7 @@
 /*
  * vdi_textblit.c - the text_blt() mainline code
  *
- * Copyright (C) 2017-2019 The EmuTOS development team
+ * Copyright (C) 2017-2020 The EmuTOS development team
  *
  * Authors:
  *  RFB   Roger Burrows
@@ -407,8 +407,6 @@ static void pre_blit(LOCALVARS *vars)
             size += vars->d_next;
         }
     }
-
-    // label no_clear:
 
     dst += size;                     /* start at the bottom */
     vars->WRT_MODE = 0;
@@ -895,7 +893,7 @@ static void screen_blit(LOCALVARS *vars)
 
 
 /*
- * resize characters for lineA
+ * resize characters for line-A
  *
  * this is similar to act_siz(), but note that act_siz() always starts
  * with the same value in the accumulator, while here the initial value

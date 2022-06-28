@@ -1,7 +1,7 @@
 /*
  * screen.h - low-level screen routines
  *
- * Copyright (C) 2001-2019 The EmuTOS development team
+ * Copyright (C) 2001-2021 The EmuTOS development team
  *
  * Authors:
  *  LVL   Laurent Vogel
@@ -16,7 +16,7 @@
 
 #define ST_VRAM_SIZE        32000UL
 #define TT_VRAM_SIZE        153600UL
-#define FALCON_VRAM_SIZE    307200UL
+#define FALCON_VRAM_SIZE    368640UL    /* 768x480x256 (including overscan) */
 
 #if CONF_WITH_ATARI_VIDEO
 
@@ -31,6 +31,9 @@
 #define SPSHIFT             0xffff8266L
 
 #define TT_SHIFTER_BITMASK  0x970f      /* valid bits in TT_SHIFTER */
+
+#define STE_LINE_OFFSET     0xffff820fL /* additional registers in STe */
+#define STE_HORZ_SCROLL     0xffff8265L
 
 #define ST_PALETTE_REGS     0xffff8240L
 #define FALCON_PALETTE_REGS 0xffff9800L
@@ -86,10 +89,7 @@ WORD esetsmear(WORD mode);
 
 #endif /* CONF_WITH_ATARI_VIDEO */
 
-/* misc routines */
-void initialise_palette_registers(WORD rez,WORD mode);
-
-/* determine screen address, monitor type, ... */
+/* set screen address, mode, ... */
 void screen_init_address(void);
 void screen_init_mode(void);
 void set_rez_hacked(void);
@@ -99,7 +99,7 @@ void screen_get_current_mode_info(UWORD *planes, UWORD *hz_rez, UWORD *vt_rez);
 const UBYTE *physbase(void);
 UBYTE *logbase(void);
 WORD getrez(void);
-void setscreen(UBYTE *logLoc, const UBYTE *physLoc, WORD rez, WORD videlmode);
+WORD setscreen(UBYTE *logLoc, const UBYTE *physLoc, WORD rez, WORD videlmode);
 void setpalette(const UWORD *palettePtr);
 WORD setcolor(WORD colorNum, WORD color);
 void vsync(void);

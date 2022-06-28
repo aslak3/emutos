@@ -1,7 +1,7 @@
 /*
  * cookie.h - declarations for the cookie jar
  *
- * Copyright (C) 2001-2019 The EmuTOS development team
+ * Copyright (C) 2001-2020 The EmuTOS development team
  *
  * Authors:
  *  LVL     Laurent Vogel
@@ -14,8 +14,8 @@
 #define COOKIE_H
 
 struct cookie {
-        long tag;
-        long value;
+    ULONG tag;
+    ULONG value;
 };
 
 /*
@@ -86,10 +86,10 @@ struct cookie {
 /* functions */
 
 void cookie_init(void);
-void cookie_add(long tag, long val);
-BOOL cookie_get(LONG tag, LONG *pvalue);
+void cookie_add(ULONG tag, ULONG val);
+BOOL cookie_get(ULONG tag, ULONG *pvalue);
 
-LONG get_idt_cookie(void);
+ULONG get_idt_cookie(void);
 
 #if CONF_WITH_FRB
 UBYTE *get_frb_cookie(void);

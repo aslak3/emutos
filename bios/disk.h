@@ -1,7 +1,7 @@
 /*
  * disk.h - disk routines
  *
- * Copyright (C) 2001-2019 The EmuTOS development team
+ * Copyright (C) 2001-2021 The EmuTOS development team
  *
  * Authors:
  *  PES   Petr Stehlik
@@ -54,6 +54,12 @@
 #define GET_MEDIACHANGE     30  /* return status as per Mediach() call*/
                                 /* arg is NULL                        */
 
+#if CONF_WITH_ULTRASATAN_CLOCK
+#define ULTRASATAN_GET_FIRMWARE_VERSION 60
+#define ULTRASATAN_GET_CLOCK 61
+#define ULTRASATAN_SET_CLOCK 62
+#endif /* CONF_WITH_ULTRASATAN_CLOCK */
+
 /* read/write flags */
 #define RW_READ             0
 #define RW_WRITE            1
@@ -62,6 +68,8 @@
 #define RW_NOMEDIACH        2
 #define RW_NORETRIES        4
 #define RW_NOTRANSLATE      8
+/* EmuTOS extension: Rwabs without byteswap on IDE */
+#define RW_NOBYTESWAP     128
 
 /*
  *  return codes

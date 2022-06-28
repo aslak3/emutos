@@ -1,7 +1,7 @@
 /*
  * clock.c - BIOS time and date routines
  *
- * Copyright (C) 2001-2019 The EmuTOS development team
+ * Copyright (C) 2001-2021 The EmuTOS development team
  *
  * Authors:
  *  MAD   Martin Doering
@@ -31,9 +31,10 @@
 #include "delay.h"
 #include "bios.h"
 #include "../bdos/bdosstub.h"
-#ifdef MACHINE_AMIGA
 #include "amiga.h"
-#endif
+#include "lisa.h"
+#include "disk.h"
+#include "acsi.h"
 
 #if (CONF_WITH_MONSTER || CONF_WITH_IKBD_CLOCK)
 static UBYTE int2bcd(UWORD a)
@@ -47,7 +48,7 @@ static UWORD bcd2int(UBYTE a)
 }
 #endif
 
-#if (CONF_WITH_ICDRTC || CONF_WITH_MONSTER || CONF_WITH_MEGARTC || CONF_WITH_NVRAM || CONF_WITH_IKBD_CLOCK)
+#if (CONF_WITH_ICDRTC || CONF_WITH_MONSTER || CONF_WITH_MEGARTC || CONF_WITH_NVRAM || CONF_WITH_IKBD_CLOCK || CONF_WITH_ULTRASATAN_CLOCK)
 /*
  * structures used by extract_date(), extract_time()
  */
@@ -513,12 +514,15 @@ void detect_monster_rtc(void)
     /*
      * Check if there's a DS1307-compatible RTC connected.
      * If there isn't, any attempts to read from it will
-     * return all zeros. So we try to read the DAY register.
-     * If it's zero, there's either no RTC or it's not
+     * return either all zeros or all ones depending on the
+     * exact HW setup. So we try to read the DAY register.
+     * If it's 0 or 0xff, there's either no RTC or it's not
      * initialized. So we try to write to the DAY register
-     * and read back it's value. If still zero, then no
-     * RTC is present.
+     * and read back its value. If it is still 0 or 0xff,
+     * then no RTC is present.
      */
+
+    UBYTE dayreg;
 
     /* Initialize I2C delay. */
     delay5us = loopcount_1_msec / 200;
@@ -526,11 +530,13 @@ void detect_monster_rtc(void)
     /* Detect presence of RTC. */
     has_monster_rtc = TRUE;
 
-    if (read_ds1307(4) == 0)
+    dayreg = read_ds1307(4);
+    if ((dayreg == 0) || (dayreg == 0xff))
     {
         write_ds1307(4, 1);
 
-        if (read_ds1307(4) == 0)
+        dayreg = read_ds1307(4);
+        if ((dayreg == 0) || (dayreg == 0xff))
             has_monster_rtc = FALSE;
         else
             /* RTC present, but not initialized. */
@@ -1067,6 +1073,66 @@ static void isetdt(ULONG dt)
 
 #endif /* CONF_WITH_IKBD_CLOCK */
 
+#if CONF_WITH_ULTRASATAN_CLOCK /* CONF_WITH_ULTRASATAN_CLOCK */
+
+static ULONG ultrasatan_getdt(void)
+{
+    UBYTE hour, minute, second, day, month;
+    UWORD year, date, time;
+
+    int ret;
+    ret = acsi_ioctl(ultrasatan_id,ULTRASATAN_GET_CLOCK,NULL);
+
+    /* check return status and format */
+    if (ret != 0 || memcmp(dskbufp,"RTC",3) != 0)
+        return 0;
+
+    year = (UWORD)dskbufp[3];
+    month = dskbufp[4];
+    day = dskbufp[5];
+    hour = dskbufp[6];
+    minute = dskbufp[7];
+    second = dskbufp[8];
+
+    KDEBUG(("ultrasatan_getdt(): read clock value %02d-%02d-%02d %02d:%02d:%02d\n", year, month, day, hour, minute, second));
+
+    date = (year + 20) << 9 | (month & 0xf) << 5 | (day & 0x1f);
+    time = (hour << 11) | (minute << 5) | (second >> 1);
+
+    return MAKE_ULONG(date, time);
+}
+
+static ULONG ultrasatan_setdt(ULONG dt)
+{
+    struct ymd date;
+    struct hms time;
+    int ret;
+
+    extract_date(&date, HIWORD(dt));
+    extract_time(&time, LOWORD(dt));
+
+    KDEBUG(("ultrasatan_setdt(): new date/time %02d-%02d-%02d %02d:%02d:%02d\n", date.year - 20, date.month, date.day, time.hour, time.minute, time.second));
+
+    dskbufp[0] = 'R';
+    dskbufp[1] = 'T';
+    dskbufp[2] = 'C';
+
+    dskbufp[3] = (UBYTE)(date.year - 20);
+    dskbufp[4] = date.month;
+    dskbufp[5] = date.day;
+    dskbufp[6] = time.hour;
+    dskbufp[7] = time.minute;
+    dskbufp[8] = time.second;
+
+    KDEBUG(("ultrasatan_setdt(): setting clock\n"));
+
+    ret = acsi_ioctl(ultrasatan_id,ULTRASATAN_SET_CLOCK,NULL);
+
+    return ret;
+}
+
+#endif /* CONF_WITH_ULTRASATAN_CLOCK */
+
 /* internal init */
 
 void clock_init(void)
@@ -1183,6 +1249,12 @@ void settime(LONG time)
         icdsetdt(time);
     }
 #endif  /* CONF_WITH_ICDRTC */
+#if CONF_WITH_ULTRASATAN_CLOCK
+    else if (has_ultrasatan_clock)
+    {
+        ultrasatan_setdt(time);
+    }
+#endif /* CONF_WITH_ULTRASATAN_CLOCK */
     else
     {
 #if CONF_WITH_IKBD_CLOCK
@@ -1203,6 +1275,12 @@ LONG gettime(void)
         return amiga_getdt();
     }
 #endif /* MACHINE_AMIGA */
+#ifdef MACHINE_LISA
+    else if (TRUE)
+    {
+        return lisa_getdt();
+    }
+#endif /* MACHINE_LISA */
 #if CONF_WITH_NVRAM
     else if (has_nvram)
     {
@@ -1227,6 +1305,12 @@ LONG gettime(void)
         return icdgetdt();
     }
 #endif  /* CONF_WITH_ICDRTC */
+#if CONF_WITH_ULTRASATAN_CLOCK
+    else if (has_ultrasatan_clock)
+    {
+        return ultrasatan_getdt();
+    }
+#endif /* CONF_WITH_ULTRASATAN_CLOCK */
     else
     {
 #if CONF_WITH_IKBD_CLOCK
