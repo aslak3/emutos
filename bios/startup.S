@@ -401,13 +401,13 @@ valid_st_mmu_config:
         // to store any data.
         // We take this opportunity to set the stack pointer to the
         // address which will become our BIOS stack after memconf.
-        lea     _stktop,sp
+        lea     _stktop,%sp
 
 #ifndef __mcoldfire__
         // first, reset the VBR
         // it may have been modified before emutos-ram or soft reset
         move.l  #vbr_ok,16     // must be 68000 if we get illegal instrn error
-        moveq   #0,d0
+        moveq   #0,%d0
         MOVEC_D0_VBR           // initialise VBR to zero
 vbr_ok:
 #endif
@@ -474,7 +474,7 @@ cache_done:
  */
 #ifndef __mcoldfire__
         move.l  #not_68030,0x2c    // PMOVE is lineF on non-68030 systems
-        lea     zero,a0
+        lea     zero,%a0
         PMOVE_A0_TTR0              // first we initialise the TTRs (ACRs on a 68ec030)
         PMOVE_A0_TTR1
         move.l  #mmu_done,0x2c     // since PMOVE (A0),TC doesn't exist on a 68ec030,
@@ -482,7 +482,7 @@ cache_done:
         jra     mmu_done
 not_68030:
         move.l  #mmu_done,0x10     // if a MOVEC causes an exception, we're done
-        moveq   #0,d0
+        moveq   #0,%d0
         MOVEC_D0_ITT0              // first we initialise the TTRs (ACRs on a 68ec040)
         MOVEC_D0_ITT1
         MOVEC_D0_DTT0
@@ -506,10 +506,10 @@ resetvec:
        jne      noreset                 // No --> noreset
        move.l   resvector.w, d0         // Yes: old resvec to d0
        jeq      noreset                 // Address null? Yes --> noreset
-       btst     #0, d0                  // Address odd ?
+       btst     #0, %d0                  // Address odd ?
        jne      noreset                 // Yes --> noreset
-       movea.l  d0, a0                  // resvec
-       lea      resetvec(pc), a6        // save return address
+       movea.l  d0, %a0                  // resvec
+       lea      resetvec(pc), %a6        // save return address
        // Note: the return address intentionally points to the resvalid test.
        // So the reset routine must explicitly clear resvalid before returning
        // to a6, otherwise there will be an infinite loop.

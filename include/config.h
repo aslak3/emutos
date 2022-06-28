@@ -33,7 +33,7 @@
 /*
  * Determine if this EmuTOS is built for ROM or RAM
  */
-#if defined(TARGET_PRG) || defined(TARGET_FLOPPY) || defined(TARGET_AMIGA_FLOPPY)
+#if /*defined(TARGET_MAXI030_IMG) || */defined(TARGET_PRG) || defined(TARGET_FLOPPY) || defined(TARGET_AMIGA_FLOPPY)
 #  define EMUTOS_LIVES_IN_RAM 1
 # else
 #  define EMUTOS_LIVES_IN_RAM 0
@@ -460,10 +460,10 @@
 #endif
 
 /*
- * Defaults for maxi000 targets
+ * Defaults for maxi030 targets
  */
-#ifdef TARGET_MAXI000_IMG
-# define MACHINE_MAXI000
+#ifdef TARGET_MAXI030_IMG
+# define MACHINE_MAXI030
 #endif
 
 /*
@@ -515,14 +515,14 @@
 #endif
 
 /*
- * Defaults for the MAXI000 machine
+ * Defaults for the MAXI030 machine
  */
-#ifdef MACHINE_MAXI000
+#ifdef MACHINE_MAXI030
 # ifndef CONF_ATARI_HARDWARE
 #  define CONF_ATARI_HARDWARE 0
 # endif
 # ifndef CONF_STRAM_SIZE
-#  define CONF_STRAM_SIZE 1024*1024
+#  define CONF_STRAM_SIZE 8*1024*1024
 # endif
 # ifndef CONF_WITH_IDE
 #  define CONF_WITH_IDE 1
@@ -544,6 +544,9 @@
 # endif
 # ifdef CONF_SERIAL_CONSOLE
 #  define CONF_SERIAL_CONSOLE 0
+# endif
+# ifndef CONF_VRAM_ADDRESS
+#  define CONF_VRAM_ADDRESS 0x40000000
 # endif
 #endif
 

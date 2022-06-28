@@ -2,8 +2,9 @@
 
 #include "emutos.h"
 #include "ikbd.h"               /* for call_mousevec() */
+#include "vectors.h"
 
-#include "maxi000.h"
+#include "maxi030.h"
 
 #define STATE_IDLE 0
 #define STATE_ENABLE_ACK 1
@@ -11,12 +12,12 @@
 
 #define CMD_ENABLE 0xf4
 
-extern void int_vbl(void);
-extern void maxi000_int_timer(void);
-extern void maxi000_update_display(void);
+//extern void int_vbl(void);
+extern void maxi030_int_timer(void);
 
-static void  __attribute__ ((interrupt)) maxi000_int_mouse(void);
-static void  __attribute__ ((interrupt)) maxi000_int_vbl(void);
+static void  __attribute__ ((interrupt)) maxi030_int_mouse(void);
+static void  __attribute__ ((interrupt)) maxi030_int_vbl(void);
+//static void  __attribute__ ((interrupt)) maxi030_int_timer(void);
 
 struct mouse_packet
 {
@@ -30,23 +31,31 @@ volatile uint16_t packet_counter = 0;
 volatile struct mouse_packet mp;
 volatile int vbl_count = 0;
 
-void maxi000_init(void)
+void maxi030_init(void)
 {
 	state = STATE_IDLE;
 
-	VUSER129 = maxi000_int_mouse;
-	VUSER130 = maxi000_int_vbl;
-	VUSER128 = maxi000_int_timer;
+	VL6AUTOVECTOR = (uint32_t) maxi030_int_vbl;
+	VL5AUTOVECTOR = (uint32_t) maxi030_int_mouse;
+	VL1AUTOVECTOR = (uint32_t) maxi030_int_timer;
 
-	TIMERCOUNT = 5 * 8000U;
+	TIMERCOUNTU = 0x03;
+        TIMERCOUNTM = 0x0d;
+        TIMERCOUNTL = 0x40;
+        TIMERCONTROL = 0x01;
 
+        INTPASS = 0x20 | 0x10 | 0x01;
+        
+        VCARDSTMODE = 0x0001;
+
+        // Enable interrupt
+        PS2ASTATUS = 0x01;
 	PS2ASCANCODE = CMD_ENABLE;
 }
 
-static void  __attribute__ ((interrupt)) maxi000_int_mouse(void)
+static void  __attribute__ ((interrupt)) maxi030_int_mouse(void)
 {
 	uint8_t data = PS2ASCANCODE;
-	SPIDATA = 0x03;
 	
 	switch (state)
 	{
@@ -71,22 +80,22 @@ static void  __attribute__ ((interrupt)) maxi000_int_mouse(void)
 			{
 				SBYTE packet[3];
 				packet[0] = 0xf8;
-				if (mp.mouse_state & 0x01) {
+				if (mp.mouse_state & 0x01)
 					packet[0] |= 0x02;
-					LED = 1;
-				}
-				else {
-					LED = 0;
-				}
+
 				if (mp.mouse_state & 0x02)
 					packet[0] |= 0x01;
 
 				int x = mp.x_delta;
+				if (x > 100) x = 100;
+				if (x < -100) x = -100;
 				int y = mp.y_delta;
-				if (x && mp.mouse_state & 0x10)
-					x -= 0x100;
-				if (y && mp.mouse_state & 0x20)
-					y -= 0x100;
+				if (y > 100) y = 100;
+				if (y < -100) y = -100;
+//				if (x && mp.mouse_state & 0x10)
+//					x -= 0x100;
+//				if (y && mp.mouse_state & 0x20)
+//					y -= 0x100;
 
 				packet[1] = x;
 				packet[2] = -y;
@@ -101,16 +110,18 @@ static void  __attribute__ ((interrupt)) maxi000_int_mouse(void)
 	}
 }
 
-static void  __attribute__ ((interrupt)) maxi000_int_vbl(void)
+static void  __attribute__ ((interrupt)) maxi030_int_vbl(void)
 {
-	TIMERCOUNT;
+	VCARDVBLANKINTCLEAR = 0;
 	
 	int_vbl();
-
-	vbl_count++;
-	if ((vbl_count % 16) == 0) {
-		SPIDATA = 0x03;
-		maxi000_update_display();
-		SPIDATA = 0x04;
-	}
 }
+
+#if 0
+static void  __attribute__ ((interrupt)) maxi030_int_timer(void)
+{
+	TIMERCONTROL = 1;
+
+	int_timerc();
+}
+#endif
