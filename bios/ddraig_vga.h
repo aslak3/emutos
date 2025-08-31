@@ -7,6 +7,7 @@
 #include "portab.h"
 
 extern uint32_t ddraigvga_base;
+extern uint16_t ddraigvga_screenbuf[DRVGA_TEXTBUF_SIZE];
 
 #define DRVGA_REG_WRITE(x, y)  (*((volatile uint16_t *) (ddraigvga_base + (x))) = (y))
 #define DRVGA_REG_READ(x)      (*((volatile uint16_t *) (ddraigvga_base + (x))))

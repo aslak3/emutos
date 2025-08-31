@@ -1,6 +1,6 @@
 #include "config.h"
 
-#define ENABLE_KDEBUG
+/* #define ENABLE_KDEBUG */
 
 #ifdef CONF_WITH_VT82C42
 
@@ -249,7 +249,7 @@ UBYTE vt8242_init(void)
     //     if (init_response == KBD_STATUS_RESEND)
     //     {
     //         KDEBUG(("ERROR: Keyboard reset resending\n"));
-    //         continue;
+    //         continue;run
     //     }
     //     else if ((init_response != KBD_STATUS_RST_OK) && (init_response != KBD_STATUS_ACK))
     //     {
@@ -268,7 +268,6 @@ UBYTE vt8242_init(void)
     KDEBUG(("vt8242: install keyboard interrupt handler\n"));
     vector_addr = &VEC_LEVEL1 + (CONF_VT82C42_AUTOVECTOR - 1);
     *vector_addr = (PFVOID)vt8242_interrupt_handler;
-    //(*((long *)0x74) = (long)vt8242_keyboard_interrupt);
 
     //vt8242_enable_port1_interrupt();
     return 1;

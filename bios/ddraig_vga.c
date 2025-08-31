@@ -17,7 +17,7 @@
 // Hard codeed for now, should be detected
 uint32_t ddraigvga_base = 0xF7F500;
 
-static uint16_t ddraigvga_screenbuf[DRVGA_TEXTBUF_SIZE];;
+uint16_t ddraigvga_screenbuf[DRVGA_TEXTBUF_SIZE];
 
 void drvga_write_control_reg(uint16_t data)
 {

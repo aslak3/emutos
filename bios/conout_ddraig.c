@@ -39,7 +39,19 @@ static const UWORD dflt_palette[] = {
     RGB_LIGHTBLUE, RGB_LIGHTMAGENTA, RGB_LIGHTCYAN, RGB_BLACK
 };
 
-static UWORD cell_addr(const UWORD x, const UWORD y)
+/*
+ * cell_addr - convert cell X,Y to a screen address.
+ *
+ * convert cell X,Y to a screen address. also clip cartesian coordinates
+ * to the limits of the current screen.
+ *
+ * input:
+ *  x       cell X
+ *  y       cell Y
+ *
+ * returns pointer to first byte of cell
+ */
+static UWORD cell_addr(UWORD x, UWORD y)
 {
     return (v_cel_mx + 1) * y + x;
 }
@@ -153,7 +165,7 @@ void blank_out(const int top_x, const int top_y, const int bottom_x, const int b
     int x, y;
     for (y = top_y; y <= bottom_y; y++) {
         uint16_t addr = cell_addr(0, y);
-        for (x = top_x; x < bottom_x; x++) {
+        for (x = top_x; x <= bottom_x; x++) {
             ddraig_write_char(addr, color | ' ');
             addr++;
         }
@@ -166,7 +178,18 @@ void blank_out(const int top_x, const int top_y, const int bottom_x, const int b
 
 void scroll_up(const UWORD top_line)
 {
-    drvga_scroll_up();
+    const uint16_t dest_vram = cell_addr(0, top_line);
+    const uint16_t src_vram  = dest_vram + (v_cel_mx + 1); // one row below dest
+    const uint16_t count = (v_cel_my + 1 - top_line) * (v_cel_mx + 1);
+
+    uint16_t *src = &ddraigvga_screenbuf[src_vram];
+    uint16_t *dst = &ddraigvga_screenbuf[dest_vram];
+    uint16_t i;
+
+    for (i = 0; i < count; i++) {
+        *dst++ = *src++;
+    }
+    drvga_copy_buffer();
     blank_out(0, v_cel_my, v_cel_mx, v_cel_my);
 }
 
@@ -176,7 +199,17 @@ void scroll_up(const UWORD top_line)
 
 void scroll_down(const UWORD start_line)
 {
-    drvga_scroll_down();
+    int row, i;
+    for (row = v_cel_my; row > start_line; row--) {
+        const uint16_t dst_vram = cell_addr(0, row);
+        const uint16_t src_vram = dst_vram - (v_cel_mx + 1);
+        uint16_t *src = &ddraigvga_screenbuf[src_vram];
+        uint16_t *dst = &ddraigvga_screenbuf[dst_vram];
+        for (i = 0; i < v_cel_mx + 1; i++) {
+            *dst++ = *src++;
+        }
+    }
+    drvga_copy_buffer();
     blank_out(0, start_line, v_cel_mx, start_line);
 }
 
