@@ -1,6 +1,6 @@
 #include "config.h"
 
-/* #define ENABLE_KDEBUG */
+#define ENABLE_KDEBUG 
 
 #ifdef CONF_WITH_VT82C42
 
@@ -79,8 +79,17 @@ static const UBYTE st_extended_make_code_map[] = {
 void __attribute__((interrupt)) vt8242_interrupt_handler(void)
 {
     UBYTE register sc;
-    sc = read_vt(VT82_DATA);
-    vt8242_process_scancode(sc);
+    UBYTE status = read_vt(VT82_STATUS);
+    if (status & 0x01)
+    {     
+        sc = read_vt(VT82_DATA);
+        vt8242_process_scancode(sc);
+    }
+    else
+    {
+        read_vt(VT82_DATA);
+        // discard data
+    }
 }
 
 void vt8242_delay(unsigned long d)
@@ -203,45 +212,47 @@ UBYTE vt8242_init(void)
 
     volatile PFVOID *vector_addr;
 
-    // KDEBUG(("vt8242_init()\n"));
+    KDEBUG(("vt8242_init()\n"));
 
-    // vt8242_set_config_byte(0);
-	// vt8242_send_command(CMD_KBD_OFF, 0); // disable first port
-	// vt8242_send_command(CMD_AUX_OFF, 0); // disable 2nd port
+    vt8242_set_config_byte(0);
+	vt8242_send_command(CMD_KBD_OFF, 0); // disable first port
+	vt8242_send_command(CMD_AUX_OFF, 0); // disable 2nd port
 
-    // KDEBUG(("vt8242: reset controller\n"));
-	// vt8242_disable_for_init();
-    // KDEBUG(("vt8242: flush buffer\n"));
-	// vt8242_flush();			 // flush buffer
-    // KDEBUG(("vt8242: self test\n"));
+    KDEBUG(("vt8242: reset controller\n"));
+	vt8242_disable_for_init();
+    KDEBUG(("vt8242: flush buffer\n"));
+	vt8242_flush();			 // flush buffer
+    KDEBUG(("vt8242: self test\n"));
 
-    // KDEBUG(("vt8242: send self test command\n"));
-	// if (vt8242_send_command(CMD_DIAG, 1) != KBD_STATUS_DIAG_OK)
-    // {
-	// 	KDEBUG(("ERROR: PS/2 keyboard controller failed.\n"));
-    //     return 0;
-	// }
+    KDEBUG(("vt8242: send self test command\n"));
+	if (vt8242_send_command(CMD_DIAG, 1) != KBD_STATUS_DIAG_OK)
+    {
+		KDEBUG(("ERROR: PS/2 keyboard controller failed.\n"));
+        return 0;
+	}
 
-    // KDEBUG(("vt8242: enable ports if present\n"));
-	// vt8242_send_command(CMD_AUX_ON, 0); // enable 2nd port
-	// if (!(vt8242_get_config_byte() & CMD_BYTE_AUX_OFF))
-    // {
-	// 	KDEBUG(("PS/2 controller has 2 channels.\n"));
-	// 	vt8242_send_command(CMD_AUX_OFF, 0);
-	// }
+    KDEBUG(("vt8242: enable ports if present\n"));
+	vt8242_send_command(CMD_AUX_ON, 0); // enable 2nd port
+	if (!(vt8242_get_config_byte() & CMD_BYTE_AUX_OFF))
+    {
+		KDEBUG(("PS/2 controller has 2 channels.\n"));
+		vt8242_send_command(CMD_AUX_OFF, 0);
+	}
 
-    // KDEBUG(("vt8242: test first PS/2 port\n"));
-	// if (vt8242_send_command(CMD_KBD_TEST, 1) != 0x00)
-    // {
-	// 	KDEBUG(("ERROR: Check keyboard!\n"));
-	// }
-	// // enable first PS/2 port
-    // KDEBUG(("vt8242: enable first PS/2 port\n"));
-	// vt8242_send_command(CMD_KBD_ON, 0);
-    // vt8242_flush();
-    // KDEBUG (("vt8242: reset keyboard\n"));
-    // int retries = 10;
-    // UBYTE init_response;
+    KDEBUG(("vt8242: test first PS/2 port\n"));
+	if (vt8242_send_command(CMD_KBD_TEST, 1) != 0x00)
+    {
+		KDEBUG(("ERROR: Check keyboard!\n"));
+	}
+	// enable first PS/2 port
+    KDEBUG(("vt8242: enable first PS/2 port\n"));
+	vt8242_send_command(CMD_KBD_ON, 0);
+    vt8242_flush();
+    //KDEBUG (("vt8242: reset keyboard\n"));
+    //int retries = 30;
+    //UBYTE init_response;
+
+    //init_response = keyboard_send_command(KBD_CMD_RST);
 
     // while (retries--)
     // {
@@ -249,7 +260,7 @@ UBYTE vt8242_init(void)
     //     if (init_response == KBD_STATUS_RESEND)
     //     {
     //         KDEBUG(("ERROR: Keyboard reset resending\n"));
-    //         continue;run
+    //         continue;
     //     }
     //     else if ((init_response != KBD_STATUS_RST_OK) && (init_response != KBD_STATUS_ACK))
     //     {
@@ -257,19 +268,21 @@ UBYTE vt8242_init(void)
     //     }
     // }
 
-    // vt82_wait_clear(STATUS_OBF);
+    vt82_wait_clear(STATUS_OBF);
 
-	// init_response = read_vt(VT82_DATA);
-    // if ((init_response != KBD_STATUS_RST_OK) && (init_response != KBD_STATUS_ACK))
-    // {
-	// 	KDEBUG(("ERROR: Keyboard self test failed, resp = %02X\n", init_response));
-	// }
+	//init_response = read_vt(VT82_DATA);
+    //if ((init_response != KBD_STATUS_RST_OK) && (init_response != KBD_STATUS_ACK))
+    //{
+	//	KDEBUG(("ERROR: Keyboard self test failed, resp = %02X\n", init_response));
+	//}
 
     KDEBUG(("vt8242: install keyboard interrupt handler\n"));
     vector_addr = &VEC_LEVEL1 + (CONF_VT82C42_AUTOVECTOR - 1);
     *vector_addr = (PFVOID)vt8242_interrupt_handler;
 
-    //vt8242_enable_port1_interrupt();
+    vt8242_flush();
+
+    vt8242_enable_port1_interrupt();
     return 1;
 }
 
