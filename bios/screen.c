@@ -637,7 +637,7 @@ void screen_init_mode(void)
 #if defined(CONF_WITH_DDRAIGVGA_CONSOLE)
     KDEBUG(("DDraigVGA console init\n"));
     ddraigvga_screen_init();
-    VEC_VBL = int_vbl;
+    VEC_LEVEL1 = int_vbl;
 #endif
 
 

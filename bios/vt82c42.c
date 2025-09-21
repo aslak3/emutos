@@ -42,7 +42,7 @@ static uint8_t vt_flush(void);
 
 void __attribute__((interrupt)) vt_interrupt_handler(void);
 void vt_process_scancode(uint8_t sc);
-void vt_process_mouse(uint8_t *packet);
+void vt_process_mouse(int8_t *packet);
 void vt_handle_mouse(uint8_t data);
 
 static uint8_t g_key_mode = 0;
@@ -296,10 +296,11 @@ uint8_t vt8242_init(void)
     return 1;
 }
 
-void vt_process_mouse(uint8_t *process)
+void vt_process_mouse(int8_t *process)
 {
     int8_t packet[3];
-    uint8_t status = process[0];
+    uint8_t status = (uint8_t)process[0];
+
 
     packet[0] = MOUSE_REL_POS_REPORT;
     if (status & 0x01)
@@ -307,8 +308,8 @@ void vt_process_mouse(uint8_t *process)
     if (status & 0x02)
         packet[0] |= RIGHT_BUTTON_DOWN;
     // Mouse positions
-    packet[1] = (int8_t)process[1]; // / 5;
-    packet[2] = (int8_t)process[2]; // / 5;
+    packet[1] = process[1];
+    packet[2] = -process[2];
 
     KDEBUG(("Mouse: X=%d Y=%d B=%d\n", (int)packet[1], (int)packet[2], packet[0] & 0x03));
 
@@ -339,7 +340,7 @@ void vt_handle_mouse(uint8_t data)
         case 2:
             mouse_bytes[2] = data;
             mouse_cycle = 0;
-            vt_process_mouse(mouse_bytes);
+            vt_process_mouse((int8_t *)mouse_bytes);
             break;
     }
 }
