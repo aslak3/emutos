@@ -61,6 +61,7 @@
 # define CONF_WITH_SCSI 0
 #endif
 
+#define CONF_WITH_VBL_RTE 1
 
 # ifndef CONF_WITH_IDE
 #  define CONF_WITH_IDE 1
