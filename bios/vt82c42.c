@@ -1,7 +1,7 @@
 #include "config.h"
 #include <stdint.h>
 
-/* #define ENABLE_KDEBUG  */
+#define ENABLE_KDEBUG
 
 #ifdef CONF_WITH_VT82C42
 
@@ -273,6 +273,12 @@ uint8_t vt8242_init(void)
     response = PS2_REG(PS2_DATA);  // should be 0x00 (mouse ID)
     KDEBUG(("Got mouse ID: %02X\n", response));
 
+    vt_device_send_command(2, MOUSE_CMD_RATE);
+    vt_device_send_command(2, 20); // Set sample rate to 20 reports/sec
+
+    vt_device_send_command(2, MOUSE_CMD_RESOLUTION);
+    vt_device_send_command(2, 1);
+
     // --- Enable streaming mode ---
     response = vt_device_send_command(2, 0xF4); // enable data reporting
     if (response != 0xFA) {
@@ -301,10 +307,10 @@ void vt_process_mouse(uint8_t *process)
     if (status & 0x02)
         packet[0] |= RIGHT_BUTTON_DOWN;
     // Mouse positions
-    packet[1] = (int8_t)packet[1];
-    packet[2] = (int8_t)packet[2];
+    packet[1] = (int8_t)process[1]; // / 5;
+    packet[2] = (int8_t)process[2]; // / 5;
 
-    KDEBUG(("Mouse: X=%d Y=%d S=%X\n", (int)packet[1], (int)packet[2], packet[0]));
+    KDEBUG(("Mouse: X=%d Y=%d B=%d\n", (int)packet[1], (int)packet[2], packet[0] & 0x03));
 
     call_mousevec(packet);
 }
