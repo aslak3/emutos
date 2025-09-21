@@ -2,7 +2,7 @@
 
 /* #define ENABLE_KDEBUG */
 
-#if CONF_WITH_DDRAIGVGA_CONSOLE
+#if defined(CONF_WITH_DDRAIGVGA_CONSOLE)
 
 #include <stdbool.h>
 

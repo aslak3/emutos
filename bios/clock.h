@@ -29,7 +29,7 @@ void detect_icdrtc(void);
 void detect_monster_rtc(void);
 #endif /* CONF_WITH_MONSTER */
 
-#if (MACHINE_DDRAIG68K)
+#if defined(MACHINE_DDRAIG68K)
 void detect_ddraig_rtc(void);
 void rtc_ddraig_setdt(LONG dt);
 LONG rtc_ddraig_getdt(void);

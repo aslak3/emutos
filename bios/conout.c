@@ -25,7 +25,7 @@
 #include "conout.h"
 #include "../vdi/vdi_defs.h"    /* for phys_work stuff */
 
-#if !CONF_WITH_XOSERA_CONSOLE && !CONF_WITH_DDRAIGVGA_CONSOLE
+#if !defined(CONF_WITH_XOSERA_CONSOLE) && !defined(CONF_WITH_DDRAIGVGA_CONSOLE)
 
 #define PLANE_OFFSET    2       /* interleaved planes */
 

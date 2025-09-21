@@ -634,7 +634,7 @@ void screen_init_mode(void)
     xosera_screen_init();
 #endif
 
-#if CONF_WITH_DDRAIGVGA_CONSOLE
+#if defined(CONF_WITH_DDRAIGVGA_CONSOLE)
     KDEBUG(("DDraigVGA console init\n"));
     ddraigvga_screen_init();
 #endif
@@ -836,7 +836,7 @@ void screen_get_current_mode_info(UWORD *planes, UWORD *hz_rez, UWORD *vt_rez)
     *planes = 1;
     *hz_rez = 640;
     *vt_rez = 240;
-#elif CONF_WITH_DDRAIGVGA_CONSOLE
+#elif defined(CONF_WITH_DDRAIGVGA_CONSOLE)
     *planes = 1;
     *hz_rez = 640;
     *vt_rez = 480;

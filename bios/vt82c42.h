@@ -18,7 +18,7 @@
 #define CMD_KBD_ON			    0xAE	// Re-Enable Keyboard Port
 
 // Command byte set by KBD_CMD_SET_BYTE and retrieved by KBD_CMD_GET_BYTE
-#define CMD_BYTE_TRANS		    0x40
+#define CMD_BYTE_TRANS		    0x40    // Scan code translation
 #define CMD_BYTE_AUX_OFF	    0x20	// 1 = mouse port disabled, 0 = enabled
 #define CMD_BYTE_KBD_OFF	    0x10	// 1 = keyboard port disabled, 0 = enabled
 #define CMD_BYTE_OVER		    0x08	// 1 = override keyboard lock
@@ -37,12 +37,13 @@
 #define KBD_CMD_DEFAULT		    0xF6	// Reverts keyboard to default settings
 #define KBD_CMD_RESET		    0xFF	// Reset - we should get 0xFA, 0xAA back
 
+#define MOUSE_CMD_RESOLUTION    0xE9    // Resolution (counts/mm) 0=1, 1 = 2, 2 = 4, 3 = 8
 #define MOUSE_CMD_STATUS        0xE9    // Status Request
 #define MOUSE_CMD_STREAM        0xEA 	// Set Stream Mode
 #define MOUSE_CMD_READ          0xEB 	// Read Data
 #define MOUSE_CMD_RSTWRAP       0xEC 	// Reset Wrap Mode
 #define MOUSE_CMD_SETWRAP       0xEE 	// Set Wrap Mode
-#define MOUSE_CMD_              0xF0 	// Set Remote Mode
+#define MOUSE_CMD_REMOTE        0xF0 	// Set Remote Mode
 #define MOUSE_CMD_ID            0xF2 	// Get Device ID
 #define MOUSE_CMD_RATE          0xF3 	// Set Sample Rate, valid values are 10, 20, 40, 60, 80, 100, and 200.
 #define MOUSE_CMD_DATAEN        0xF4 	// Enable Data Reporting
@@ -128,24 +129,7 @@
 #define SCAN_CODE_PAGEUP        0x7D
 
 
-void vt_interrupt_handler(void);
-
 UBYTE vt8242_init(void);
-UBYTE vt_flush(void);
-void vt_disable_for_init(void);
 
-void vt_set_config_byte(UBYTE cfg_byte);
-UBYTE vt_get_config_byte(void);
-void vt_process_scancode(UBYTE sc);
-
-void vt_enable_port1_interrupt(void);
-void vt_enable_port2_interrupt(void);
-void vt_disable_port1_interrupt(void);
-void vt_disable_port2_interrupt(void);
-
-void vt_set_leds(UBYTE leds);
-UBYTE vt_send_command(UBYTE cmd, UBYTE wait_response);
-UBYTE keyboard_send_command(UBYTE cmd);
-UBYTE mouse_send_command(UBYTE cmd);
 
 #endif

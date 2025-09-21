@@ -3,7 +3,7 @@
 
 /* #define ENABLE_KDEBUG */
 
-#if CONF_WITH_DDRAIGVGA_CONSOLE
+#if defined(CONF_WITH_DDRAIGVGA_CONSOLE)
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -60,7 +60,7 @@ static void ddraig_write_char(const uint16_t addr, const int ch)
 {
     const uint16_t color = v_stat_0 & M_REVID ? 
         dflt_palette[v_col_bg] | (dflt_palette[v_col_fg] << 4) : dflt_palette[v_col_fg] | (dflt_palette[v_col_bg] << 4);
-    KDEBUG(("ddraig_write_char: addr=%u, ch=0x%02X, color=0x%04X\n", addr, ch & 0xFF, color));
+    //KDEBUG(("ddraig_write_char: addr=%u, ch=0x%02X, color=0x%04X\n", addr, ch & 0xFF, color));
     drvga_write_char(addr, color | (ch & 0xFF));
 }
 

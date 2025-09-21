@@ -1374,7 +1374,7 @@ void settime(LONG time)
         ultrasatan_setdt(time);
     }
 #endif /* CONF_WITH_ULTRASATAN_CLOCK */
-#if MACHINE_DDRAIG68K
+#if defined(MACHINE_DDRAIG68K)
     else if (TRUE)
     {
         rtc_ddraig_setdt(time);
@@ -1436,7 +1436,7 @@ LONG gettime(void)
         return ultrasatan_getdt();
     }
 #endif /* CONF_WITH_ULTRASATAN_CLOCK */
-#if MACHINE_DDRAIG68K
+#if defined(MACHINE_DDRAIG68K)
     else if (TRUE)
     {
         return rtc_ddraig_getdt();
