@@ -87,10 +87,14 @@ extern WORD trap_save_area[];
 #define VEC_SCCA_SRC (*(volatile PFVOID*)0x1b8) /* Channel A, special receive condition */
 #endif
 
+#if defined(MACHINE_DDRAIG68K)
+#define VEC_VBL     VEC_LEVEL1                /* VBL interrupt vector */
+#else
 /* Atari hardware interrupt mapping */
 #define VEC_HBL     VEC_LEVEL2                /* HBL interrupt vector */
 #define VEC_VBL     VEC_LEVEL4                /* VBL interrupt vector */
 #define VEC_ACIA    VEC_MFP6                  /* Keyboard/MIDI interrupt vector */
+#endif
 
 /* OS exception mapping */
 #define VEC_GEM     VEC_TRAP2                 /* GEM trap exception vector */
