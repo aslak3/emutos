@@ -122,6 +122,10 @@ void ddraigvga_screen_init(void)
     }
     drvga_copy_buffer();
     init_system_vars();
+
+    // Enable the VBL interrupt
+    DRVGA_REG_WRITE(REG_INTERRUPT, 0x0001);
+
 }
 
 
