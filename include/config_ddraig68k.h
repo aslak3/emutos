@@ -19,7 +19,7 @@
 # endif
 
 # ifndef CONF_STRAM_SIZE
-#  define CONF_STRAM_SIZE (1<<20)
+#  define CONF_STRAM_SIZE (8<<20)
 # endif
 # ifndef CONF_WITH_ALT_RAM
 #  define CONF_WITH_ALT_RAM 0
