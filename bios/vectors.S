@@ -500,7 +500,7 @@ vbl_end:
 
 #ifdef CONF_WITH_DDRAIGVGA_CONSOLE
         # Clear the gfxvga VBL interrupt (write status register)
-        move.w #4,_ddraigvga_base
+        move.w #4,0xf7f500              //_ddraigvga_base
 #endif
 
 #if CONF_WITH_ATARI_VIDEO || CONF_WITH_VBL_RTE

@@ -8,6 +8,7 @@
 #include "emutos.h"
 #include "ikbd.h"
 #include "vectors.h"
+#include "asm.h"
 
 #include <stdio.h>
 #include <ctype.h>
@@ -204,17 +205,22 @@ uint8_t vt8242_init(void)
     volatile PFVOID *vector_addr;
 
     KDEBUG(("vt8242_init()\n"));
-
-    vt_flush();			 // flush buffer
-
-    vt_send_command(CMD_KBD_OFF); // disable first port
-	vt_send_command(CMD_AUX_OFF); // disable 2nd port
-
-    vt_disable_for_init();
+    WORD old_sr;
+    /* disable interrupts */
+    old_sr = set_sr(0x2700);
 
     KDEBUG(("vt8242: install keyboard interrupt handler\n"));
     vector_addr = &VEC_LEVEL1 + (CONF_VT82C42_AUTOVECTOR - 1);
     *vector_addr = (PFVOID)vt_interrupt_handler;
+
+    vt_disable_for_init();
+
+    vt_flush();			 // flush buffer
+    KDEBUG(("vt8242: Keyboard buffer flushed\n"));
+
+    vt_send_command(CMD_KBD_OFF); // disable first port
+	vt_send_command(CMD_AUX_OFF); // disable 2nd port
+
 
 
     KDEBUG(("vt8242: controller self test\n"));
@@ -292,6 +298,9 @@ uint8_t vt8242_init(void)
     // Enable interrupts
     uint8_t cfg = vt_get_config_byte();
     vt_set_config_byte(cfg | CMD_BYTE_KBD_INT | CMD_BYTE_AUX_INT);
+
+    /* restore interrupts */
+    set_sr(old_sr);    
 
     return 1;
 }
