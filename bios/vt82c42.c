@@ -1,7 +1,7 @@
 #include "config.h"
 #include <stdint.h>
 
-#define ENABLE_KDEBUG
+/* #define ENABLE_KDEBUG */
 
 #ifdef CONF_WITH_VT82C42
 
@@ -280,7 +280,7 @@ uint8_t vt8242_init(void)
     KDEBUG(("Got mouse ID: %02X\n", response));
 
     vt_device_send_command(2, MOUSE_CMD_RATE);
-    vt_device_send_command(2, 20); // Set sample rate to 20 reports/sec
+    vt_device_send_command(2, 10); // Set sample rate to 10 reports/sec
 
     vt_device_send_command(2, MOUSE_CMD_RESOLUTION);
     vt_device_send_command(2, 1);
