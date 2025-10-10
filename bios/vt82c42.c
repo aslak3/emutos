@@ -1,6 +1,10 @@
 #include "config.h"
 #include <stdint.h>
 
+// Keyboard initialisation improved to stop spurios charater interrupts occuringh
+// Based on Tom Storey's code https://github.com/tomstorey/emutos/blob/comet68k/bios/comet_vga.c
+
+
 /* #define ENABLE_KDEBUG */
 
 #ifdef CONF_WITH_VT82C42
@@ -9,6 +13,7 @@
 #include "ikbd.h"
 #include "vectors.h"
 #include "asm.h"
+#include "tosvars.h"
 
 #include <stdio.h>
 #include <ctype.h>
@@ -16,7 +21,8 @@
 #include "vt82c42.h"
 
 #define PS2_BASE                0x00F7F200
-#define PS2_REG(x)      (*((volatile char *) PS2_BASE + x))
+#define PS2_READ(r) (*(volatile UBYTE *)(PS2_BASE + (r)))
+#define PS2_WRITE(v, r) (*(volatile UBYTE *)(PS2_BASE + (r)) = (v))
 
 // Register Offsets
 #define PS2_DATA		  		0x00
@@ -28,27 +34,35 @@
 #define RIGHT_BUTTON_DOWN       0x01    /* these values are OR'ed in */
 #define LEFT_BUTTON_DOWN        0x02
 
+#define WAIT_TIMEOUT 10000
+
+enum vt_port {
+    PORT_KB = 0,
+    PORT_MS = 1
+};
+
 // Function prototypes
-static void vt_wait_read(void);
-static void vt_wait_write(void);
-static void vt_send_command(uint8_t cmd);
-static void vt_send_data(uint8_t data);
-static uint8_t vt_read_data(void);
-static uint8_t vt_device_send_command(uint8_t port, uint8_t cmd);
-static uint8_t vt_get_config_byte(void);
-static void vt_set_config_byte(uint8_t cfg_byte);
-static void vt_disable_for_init(void);
-static void vt_set_leds(uint8_t leds);
-static uint8_t vt_flush(void);
+static void vt_delay(ULONG count);
+static void vt_write_wait(const UBYTE data, const UBYTE reg);
+static UBYTE vt_cmd_data_polled(const UBYTE cmd);
+static UBYTE vt_data_data_polled(const UBYTE data);
+static UBYTE vt_data_polled(void);
+static UBYTE vt_send_device_cmd(const enum vt_port port, UBYTE cmd);
+static UBYTE vt_get_cmd_byte(void);
+static void vt_set_cmd_byte(const UBYTE cmd);
+static UBYTE device_keyboard_reset(void);
+static void device_keyboard_led_animate(void);
+static void vt_set_leds(UBYTE leds);
+static void vt_flush(void);
 
 void __attribute__((interrupt)) vt_interrupt_handler(void);
-void vt_process_scancode(uint8_t sc);
+void vt_process_scancode(UBYTE sc);
 void vt_process_mouse(int8_t *packet);
-void vt_handle_mouse(uint8_t data);
+void vt_handle_mouse(UBYTE data);
 
-static uint8_t g_key_mode = 0;
+static UBYTE g_key_mode = 0;
 
-static const uint8_t st_make_code_map[] = {
+static const UBYTE st_make_code_map[] = {
     0 , 67 /*F9*/, 0 , 63 /*F5*/, 61 /*F3*/, 59 /*F1*/, 60 /*F2*/, 97 /*F12*/,
 	0 , 68 /*F10*/, 66 /*F8*/, 64 /*F6*/, 62 /*F4*/, 15 /*Tab*/, 41 /*Backtick/Tilde (`~)*/, 0 , 
     0 , 56 /*Left Alt*/, 42 /*Left Shift*/, 0 , 29 /*Left Ctrl*/, 16 /*Q*/, 2 /*1*/, 0 ,
@@ -68,7 +82,7 @@ static const uint8_t st_make_code_map[] = {
     105 /*Keypad 9/PgUp*/, -1 /*ScrollLock*/, 0 , 0 , 0 , 0 , 65 /*F7*/
 };
 
-static const uint8_t st_extended_make_code_map[] = {
+static const UBYTE st_extended_make_code_map[] = {
     0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 
     56 /*Right Alt*/, 0 , 0 , 29 /*Right Ctrl*/, 0 , 0 , 0 , 0 , 0 , 0 ,
     0 , 0 , 0 , 0 , -1 /*Left GUI (Windows)*/, 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
@@ -82,116 +96,201 @@ static const uint8_t st_extended_make_code_map[] = {
     81 /*Page Down*/, 0 , 0 , 73 /*Page Up*/, 0 , 0
 };
 
-#define WAIT_TIMEOUT 10000
-
-// Wait until the output buffer is full (data available to read)
-static void vt_wait_read(void)
+static void vt_delay(ULONG count)
 {
-    volatile uint32_t timeout = WAIT_TIMEOUT;
-    while ((PS2_REG(PS2_STAT) & STATUS_OBF) == 0)
-    {
-        timeout--;
-        if (timeout == 0)
+    volatile ULONG delay = count;
+
+    while (delay--)
+    {}
+}
+
+static void vt_write_wait(const UBYTE data, const UBYTE reg)
+{
+    UBYTE val;
+    volatile ULONG timeout = WAIT_TIMEOUT;
+    
+    /* Wait until input buffer empty */
+    do {
+        val = PS2_READ(PS2_CMD);
+        if (--timeout == 0)
             break;
-    }
+    } while (val & STATUS_IBF);
+
+    /* Send the command */
+    PS2_WRITE(data, reg);
 }
 
-// Wait until the input buffer is empty (ready to write)
-static void vt_wait_write(void)
+static UBYTE vt_cmd_data_polled(const UBYTE cmd)
 {
-    volatile uint32_t timeout = WAIT_TIMEOUT;
-    while (PS2_REG(PS2_STAT) & STATUS_IBF)
-    {
-        timeout--;
-        if (timeout == 0)
-            break;
-    }
+    UBYTE val;
+    volatile ULONG timeout = WAIT_TIMEOUT;
+
+    /* Send the command */
+    vt_write_wait(cmd, PS2_CMD);
+
+    /* Wait for the response by polling the OBF flag of the status register */
+    do {
+        val = PS2_READ(PS2_CMD);
+        if (--timeout == 0)
+            break;        
+    } while (!(val & STATUS_OBF));
+
+    /* Return the value from the data register */
+    val = PS2_READ(PS2_DATA);
+
+    return val;
 }
 
-// Send a command to the PS/2 controller
-static void vt_send_command(uint8_t cmd)
+static UBYTE vt_data_data_polled(const UBYTE data)
 {
-    vt_wait_write();
-    PS2_REG(PS2_CMD) = cmd;
+    UBYTE val;
+    volatile ULONG timeout = WAIT_TIMEOUT;
+
+    /* Write the data */
+    vt_write_wait(data, PS2_DATA);
+
+    /* Wait for the response by polling the OBF flag of the status register */
+    do {
+        val = PS2_READ(PS2_CMD);
+        if (--timeout == 0)
+            break;        
+    } while (!(val & STATUS_OBF));
+
+    /* Return the value from the data register */
+    val = PS2_READ(PS2_DATA);
+
+    return val;
 }
 
-// Send data to the PS/2 controller
-static void vt_send_data(uint8_t data)
+static UBYTE vt_data_polled(void)
 {
-    vt_wait_write();
-    PS2_REG(PS2_DATA) = data;
+    UBYTE val;
+    volatile ULONG timeout = WAIT_TIMEOUT;
+
+    /* Wait for the response by polling the OBF flag of the status register */
+    do {
+        val = PS2_READ(PS2_CMD);
+        if (--timeout == 0)
+            break;      
+    } while (!(val & STATUS_OBF));
+
+    /* Return the value from the data register */
+    val = PS2_READ(PS2_DATA);
+
+    return val;
 }
 
-// Read data from the PS/2 controller
-static uint8_t vt_read_data(void)
+static UBYTE vt_send_device_cmd(const enum vt_port port, UBYTE cmd)
 {
-    vt_wait_read();
-    return PS2_REG(PS2_DATA);
-}
+    UBYTE retries = 10;
+    UBYTE val;
 
-// Send a command directly to a PS/2 device (keyboard or mouse)
-static uint8_t vt_device_send_command(uint8_t port, uint8_t cmd)
-{
-    uint8_t retries = 10;
-    uint8_t res;
-
-    while (retries--)
-    {
-        if (port == 2) {
-            vt_send_command(CMD_AUX_WRITE);  // Mouse
+    while (retries--) {
+        if (port == PORT_MS) {
+            /* Will write to the mouse output port */
+            vt_write_wait(0xD4, PS2_CMD);
         }
-        vt_send_data(cmd);
-        res = vt_read_data();
-        if (res != KBD_STATUS_RESEND)
-            return res;
+
+        val = vt_data_data_polled(cmd);
+
+        if (retries == 1 || val != 0xFE) {
+            break;
+        }
+
+        /* Delay until before retrying */
+        vt_delay(500);
     }
 
-    return res; // last response, even if error
+    return val;
 }
 
-static uint8_t vt_get_config_byte(void)
+static UBYTE vt_get_cmd_byte(void)
 {
-	vt_send_command(0x20);
-    return vt_read_data();
+    return vt_cmd_data_polled(0x20);
 }
 
-static void vt_set_config_byte(uint8_t cfg_byte)
+static void vt_set_cmd_byte(const UBYTE cmd)
 {
-	vt_send_command(0x60);
-	vt_send_data(cfg_byte);
+    vt_write_wait(0x60, PS2_CMD);
+    vt_write_wait(cmd, PS2_DATA);
 }
 
-static void vt_disable_for_init(void)
+static UBYTE device_keyboard_reset(void)
 {
-	uint8_t cfg = vt_get_config_byte();
-	vt_set_config_byte(cfg & ~(CMD_BYTE_KBD_INT | CMD_BYTE_AUX_INT | CMD_BYTE_TRANS));
-}
+    UBYTE val;
 
-static void vt_set_leds(uint8_t leds)
-{
-    vt_send_data(KBD_CMD_LED);
-	vt_send_data(leds);
-}
+    /* Send the keyboard reset command */
+    val = vt_send_device_cmd(PORT_KB, 0xFF);
 
-static uint8_t vt_flush(void)
-{
-    int timeout = WAIT_TIMEOUT;
-    // Clear the Output Buffer
-    while (timeout)
-	{
-        if ((PS2_REG(PS2_STAT) & STATUS_OBF))
-            PS2_REG(PS2_DATA);
-        timeout--;
+    if (val != 0xFA) {
+        /* Keyboard did not acknowledge reset command */
+        return 0;
     }
-	return 0;
+
+    /* Keyboard acknowledged the reset command, it should also indicate whether the reset was successful */
+    val = vt_data_polled();
+
+    if (val != 0xAA) {
+        return 0;
+    }
+
+    /* Reset succeeded */
+    return 1;
 }
 
+static void device_keyboard_led_animate(void)
+{
+    /* Animation pattern: none -> num -> caps -> scroll -> none -> num - 0xFF terminates */
+    const UBYTE anim[] = {0, STATUS_NUM_LOCK, STATUS_CAPS_LOCK, STATUS_SCROLL_LOCK, 0, STATUS_NUM_LOCK, 0xFF};
+
+    UBYTE i;
+
+    for (i = 0;; i++) {
+        if (anim[i] == 0xFF) {
+            /* Animation done */
+            break;
+        }
+
+        /* Set LED */
+        (void)vt_data_data_polled(0xED);
+        (void)vt_data_data_polled(anim[i]);
+
+        /* Update LED status for tracking purposes */
+        g_key_mode = anim[i];
+
+        /* Delay between transitions */
+        vt_delay(2000);
+    }
+}
+
+static void vt_set_leds(UBYTE leds)
+{
+    vt_data_data_polled(KBD_CMD_LED);
+	vt_data_data_polled(leds);
+}
+
+static void vt_flush(void)
+{
+    UBYTE status;
+    /* Flush the output buffer */
+    for (;;)
+    {
+        status = PS2_READ(PS2_CMD);
+
+        if (status & STATUS_OBF) {
+            (void)PS2_READ(PS2_DATA);
+            KDEBUG(("vt8242_init(): flush\n"));
+        } else {
+            break;
+        }
+    }
+}
 
 //	keyboard interrupt handler
 void __attribute__((interrupt)) vt_interrupt_handler(void)
 {
-    uint8_t status = PS2_REG(PS2_STAT);
-    uint8_t data = PS2_REG(PS2_DATA);
+    UBYTE status = PS2_READ(PS2_STAT);
+    UBYTE data = PS2_READ(PS2_DATA);
 
     // Bit 5 set, mouse data
     if (status & 0x20)
@@ -200,104 +299,92 @@ void __attribute__((interrupt)) vt_interrupt_handler(void)
         vt_process_scancode(data);
 }
 
-uint8_t vt8242_init(void)
+UBYTE vt8242_init(void)
 {
     volatile PFVOID *vector_addr;
+    UBYTE data;
 
     KDEBUG(("vt8242_init()\n"));
     WORD old_sr;
     /* disable interrupts */
     old_sr = set_sr(0x2700);
 
-    KDEBUG(("vt8242: install keyboard interrupt handler\n"));
+    /* Disable keyboard and mouse ports, disable interrupts and translation */
+    vt_set_cmd_byte(CMD_BYTE_AUX_OFF | CMD_BYTE_KBD_OFF);
+    vt_flush();
+
+    KDEBUG(("vt8242_init: install keyboard interrupt handler\n"));
     vector_addr = &VEC_LEVEL1 + (CONF_VT82C42_AUTOVECTOR - 1);
     *vector_addr = (PFVOID)vt_interrupt_handler;
 
-    vt_disable_for_init();
+    KDEBUG(("vt8242_init: controller self test\n"));
+    data = vt_cmd_data_polled(CMD_DIAG);
+	if (data != KBD_STATUS_DIAG_OK)
+		KDEBUG(("vt8242_init: PS/2 keyboard controller FAILED.\n"));
+    else
+        KDEBUG(("vt8242_init: PS/2 keyboard controller passed.\n"));
 
-    vt_flush();			 // flush buffer
-    KDEBUG(("vt8242: Keyboard buffer flushed\n"));
+    /* Controller firmware/hardware versions */
+    data = vt_cmd_data_polled(CMD_VERSION_CTRL);
+    KDEBUG(("vt8242_init: Version (A1)=%02X\n", data));
+    data = vt_cmd_data_polled(CMD_VERSION);
+    KDEBUG(("vt8242_init: Version (AF)=%02X\n", data));
 
-    vt_send_command(CMD_KBD_OFF); // disable first port
-	vt_send_command(CMD_AUX_OFF); // disable 2nd port
-
-
-
-    KDEBUG(("vt8242: controller self test\n"));
-    vt_send_command(CMD_DIAG);
-	if (vt_read_data() != KBD_STATUS_DIAG_OK)
-    {
-		KDEBUG(("ERROR: PS/2 keyboard controller failed.\n"));
-        return 0;
-	}
-
-	vt_send_command(CMD_AUX_ON); // enable 2nd port
-	if (!(vt_get_config_byte() & CMD_BYTE_AUX_OFF))
-    {
-		KDEBUG(("PS/2 controller has 2 channels.\n"));
-	}
-
-    vt_send_command(CMD_KBD_TEST);
-	if (vt_read_data() != 0x00)
-    {
-		KDEBUG(("ERROR: PS/2 keyboard test failed.\n"));
-	}
-
-    // enable first PS/2 port
-	vt_send_command(CMD_KBD_ON);
-    vt_flush();
-
-
-    uint8_t response;
-
-    response = vt_device_send_command(1, KBD_CMD_RESET);
-    if ((response != KBD_STATUS_ACK))
-    {
-        KDEBUG(("ERROR: Keyboard reset error, resp = %02x\n", response));
+    /* Operating mode */
+    data = vt_cmd_data_polled(CMD_GET_MODE);
+    if (data == 0x01) {
+        KDEBUG(("vt8242_init: PS/2 mode\n"));
+    } else {
+        KDEBUG(("vt8242_init: AT mode (unsupported)\n"));
     }
 
-	response = vt_read_data();
-    if (response != KBD_STATUS_RST_OK)
+	KDEBUG(("vt8242_init: starting keyboard test.\n"));
+    data = vt_cmd_data_polled(CMD_KBD_TEST);
+	if (data != 0x00)
     {
-		KDEBUG(("ERROR: Keyboard self test failed, resp = %02X\n", response));
-		if (response == 0xFC)
-        {
-			KDEBUG(("Basic assurance test failed (0xFC)\n"));
-		}
+		KDEBUG(("vt8242_init: PS/2 keyboard test failed.\n"));
 	}
 
-    // Initiailise the mouse controller
-    vt_send_command(CMD_AUX_ON); // enable 2nd port
-    vt_flush();
+    /* Enable the keyboard interface */
+    vt_write_wait(CMD_KBD_ON, PS2_CMD);
 
-    response = vt_device_send_command(2, 0xFF); // should return 0xFA (ACK)
-    if (response != 0xFA) {
-        KDEBUG(("Mouse reset: expected ACK (0xFA), got %02X\n", response));
+    /* Reset keyboard */
+    // if (device_keyboard_reset() != 1) {
+    //     KDEBUG(("vt8242_init(): Keyboard reset failed\n"));
+    // }
+
+    /* Do a little LED animation :) */
+    device_keyboard_led_animate();
+
+    /* Initialise the mouse controller */
+    vt_write_wait(CMD_AUX_ON, PS2_CMD); // enable 2nd port
+
+    data = vt_send_device_cmd(PORT_MS, MOUSE_CMD_RATE);
+    if (data != 0xFA) {
+        KDEBUG(("vt8242_init(): Mouse CMD_RATE failed, got %02X\n", data));
+    }
+    data = vt_send_device_cmd(PORT_MS, 20); // Set sample rate to 20 reports/sec
+    if (data != 0xFA) {
+        KDEBUG(("vt8242_init(): Mouse CMD_RATE data failed, got %02X\n", data));
     }
 
-    vt_wait_read();
-    response = PS2_REG(PS2_DATA);  // should be 0x00 (mouse ID)
-    KDEBUG(("Got mouse ID: %02X\n", response));
+    vt_send_device_cmd(PORT_MS, MOUSE_CMD_RESOLUTION);
+    vt_send_device_cmd(PORT_MS, 1);
 
-    vt_device_send_command(2, MOUSE_CMD_RATE);
-    vt_device_send_command(2, 10); // Set sample rate to 10 reports/sec
-
-    vt_device_send_command(2, MOUSE_CMD_RESOLUTION);
-    vt_device_send_command(2, 1);
-
-    // --- Enable streaming mode ---
-    response = vt_device_send_command(2, 0xF4); // enable data reporting
-    if (response != 0xFA) {
-        KDEBUG(("Mouse enable stream failed: got %02X\n", response));
+    /* Enable streaming mode */
+    data = vt_send_device_cmd(PORT_MS, MOUSE_CMD_DATAEN); // enable data reporting
+    if (data != 0xFA) {
+        KDEBUG(("Mouse enable stream failed: got %02X\n", data));
     }
 
     KDEBUG(("Mouse init complete\n"));
     KDEBUG(("VT82C42 Init complete\n"));
 
     vt_flush();
+
     // Enable interrupts
-    uint8_t cfg = vt_get_config_byte();
-    vt_set_config_byte(cfg | CMD_BYTE_KBD_INT | CMD_BYTE_AUX_INT);
+    UBYTE cfg = vt_get_cmd_byte();
+    vt_set_cmd_byte(cfg | CMD_BYTE_KBD_INT | CMD_BYTE_AUX_INT);
 
     /* restore interrupts */
     set_sr(old_sr);    
@@ -308,7 +395,7 @@ uint8_t vt8242_init(void)
 void vt_process_mouse(int8_t *process)
 {
     int8_t packet[3];
-    uint8_t status = (uint8_t)process[0];
+    UBYTE status = (UBYTE)process[0];
 
 
     packet[0] = MOUSE_REL_POS_REPORT;
@@ -325,10 +412,10 @@ void vt_process_mouse(int8_t *process)
     call_mousevec(packet);
 }
 
-void vt_handle_mouse(uint8_t data)
+void vt_handle_mouse(UBYTE data)
 {
-    static uint8_t mouse_cycle = 0;
-    static uint8_t mouse_bytes[3] = { 0 };
+    static UBYTE mouse_cycle = 0;
+    static UBYTE mouse_bytes[3] = { 0 };
 
     switch (mouse_cycle)
     {
@@ -354,13 +441,13 @@ void vt_handle_mouse(uint8_t data)
     }
 }
 
-void vt_process_scancode(uint8_t sc)
+void vt_process_scancode(UBYTE sc)
 {
-    static uint8_t key_break = 0;
-    static uint8_t key_extended = 0;
-    static uint8_t key_remaining = 0;
+    static UBYTE key_break = 0;
+    static UBYTE key_extended = 0;
+    static UBYTE key_remaining = 0;
 
-	uint8_t register chr;
+	UBYTE register chr;
 
     if (key_remaining > 0)
     {

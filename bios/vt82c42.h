@@ -26,6 +26,10 @@
 #define CMD_BYTE_AUX_INT	    0x02	// 1 = enable mouse interrupt
 #define CMD_BYTE_KBD_INT	    0x01	// 1 = enable keyboard interrupt
 
+#define CMD_VERSION_CTRL        0xA1    // Get controller version
+#define CMD_VERSION             0xAF    // Get version
+#define CMD_GET_MODE            0xCA    // Get keyboard mode
+
 // Keyboard Commands (Sent to the Data Port)
 #define KBD_CMD_LED			    0xED	// Set Keyboard LEDS with next byte
 #define KBD_CMD_ECHO		    0xEE	// Echo - we get 0xFA, 0xEE back
