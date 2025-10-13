@@ -24,6 +24,7 @@
 #include "cmd.h"
 #include "version.h"
 #include "string.h"
+#include "ddraig_vga.h"
 
 /*
  *  global variables
@@ -82,11 +83,15 @@ WORD argc, rc;
 
     nflops_copy = Supexec(get_nflops);      /* number of floppy drives */
 
+#ifdef CONF_WITH_DDRAIGVGA_CONSOLE
+    drvga_write_control_reg(DISPMODE_TEXT);
+#else
     /*
      * start up in ST medium if we are currently in ST low
      */
     if (current_res == ST_LOW)
         change_res(ST_MEDIUM);
+#endif
 
     /* clear_screen(); */
     enable_cursor();
@@ -130,7 +135,11 @@ WORD argc, rc;
                 continue;
             rc = execute(argc,arglist,redir_name);
             if (rc < 0) {       /* exit EmuCON */
+#ifdef CONF_WITH_DDRAIGVGA_CONSOLE
+                drvga_write_control_reg(DISPMODE_BITMAPHIRES);
+#else
                 change_res(original_res);
+#endif                
                 return 0;
             }
         } while (rc <= 0);      /* until resolution change */

@@ -544,8 +544,11 @@ _int_timerc:
         movem.l d0-d7/a0-a6,-(sp)       // save registers
 #endif
 
+#ifndef CONF_WITH_VT82C42
+        // The VT82C42 handles the key repeats
         // repeat keys
         jsr     _kb_timerc_int
+#endif
 
 #if CONF_WITH_YM2149
         // dosound support

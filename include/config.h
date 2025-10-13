@@ -1596,7 +1596,7 @@
  * the wheel.
  */
 #ifndef CONF_WITH_EXTENDED_MOUSE
-# define CONF_WITH_EXTENDED_MOUSE 1
+# define CONF_WITH_EXTENDED_MOUSE 0
 #endif
 
 /*
