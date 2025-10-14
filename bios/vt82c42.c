@@ -5,7 +5,7 @@
 // Based on Tom Storey's code https://github.com/tomstorey/emutos/blob/comet68k/bios/comet_vga.c
 
 
-/* #define ENABLE_KDEBUG */
+#define ENABLE_KDEBUG
 
 #ifdef CONF_WITH_VT82C42
 
@@ -407,7 +407,7 @@ void vt_process_mouse(int8_t *process)
     packet[1] = process[1];
     packet[2] = -process[2];
 
-    KDEBUG(("Mouse: X=%d Y=%d B=%d\n", (int)packet[1], (int)packet[2], packet[0] & 0x03));
+    //KDEBUG(("Mouse: X=%d Y=%d B=%d\n", (int)packet[1], (int)packet[2], packet[0] & 0x03));
 
     call_mousevec(packet);
 }
