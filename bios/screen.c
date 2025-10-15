@@ -42,7 +42,7 @@
 #include "lisa.h"
 #include "nova.h"
 #include "xosera.h"
-#include "ddraig_vga.h"
+#include "ddraig.h"
 
 void detect_monitor_change(void);
 static void setphys(const UBYTE *addr);
@@ -418,6 +418,10 @@ WORD check_moderez(WORD moderez)
     return amiga_check_moderez(moderez);
 #endif
 
+#ifdef MACHINE_DDRAIG68K
+    return ddraig_check_moderez(moderez);
+#endif
+
 #if CONF_WITH_VIDEL
     if (has_videl)
         return videl_check_moderez(moderez);
@@ -636,8 +640,8 @@ void screen_init_mode(void)
 
 #if defined(CONF_WITH_DDRAIGVGA_CONSOLE)
     KDEBUG(("DdraigVGA console init\n"));
-    VEC_LEVEL1 = int_vbl;
     vblsem = 0;
+    VEC_LEVEL1 = int_vbl;
     ddraigvga_screen_init();
 #endif
 
@@ -715,6 +719,11 @@ int rez_changeable(void)
 #ifdef MACHINE_AMIGA
     return TRUE;
 #endif
+
+#ifdef MACHINE_DDRAIG68K
+    return TRUE;
+#endif
+
 
 #if CONF_WITH_VIDEL
     if (has_videl)  /* can't change if real ST monochrome monitor */
@@ -839,7 +848,7 @@ void screen_get_current_mode_info(UWORD *planes, UWORD *hz_rez, UWORD *vt_rez)
     *hz_rez = 640;
     *vt_rez = 240;
 #elif defined(CONF_WITH_DDRAIGVGA_CONSOLE)
-    *planes = 1;
+    *planes = 16;
     *hz_rez = 640;
     *vt_rez = 480;
 #else
@@ -1069,6 +1078,8 @@ const UBYTE *physbase(void)
     return amiga_physbase();
 #elif defined(MACHINE_LISA)
     return lisa_physbase();
+#elif defined(MACHINE_DDRAIG68K)
+    return ddraig_physbase();
 #elif CONF_WITH_ATARI_VIDEO
     return atari_physbase();
 #else
@@ -1087,6 +1098,8 @@ static void setphys(const UBYTE *addr)
     amiga_setphys(addr);
 #elif defined(MACHINE_LISA)
     lisa_setphys(addr);
+#elif defined(MACHINE_DDRAIG68K)
+    ddraig_setphys(addr);
 #elif CONF_WITH_ATARI_VIDEO
     atari_setphys(addr);
 #endif
@@ -1174,6 +1187,8 @@ WORD setscreen(UBYTE *logLoc, const UBYTE *physLoc, WORD rez, WORD videlmode)
 
 #ifdef MACHINE_AMIGA
     amiga_setrez(rez, videlmode);
+#elif MACHINE_DDRAIG68K
+    ddraig_setrez(rez, videlmode);
 #elif CONF_WITH_ATARI_VIDEO
     atari_setrez(rez, videlmode);
 #endif

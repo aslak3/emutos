@@ -103,6 +103,19 @@
 # ifndef CONF_VT82C42_AUTOVECTOR
 #  define CONF_VT82C42_AUTOVECTOR 5
 # endif
+/*
+ * CONF_VRAM_ADDRESS sets to the address where the video ram should be
+ */
+# ifndef CONF_WITH_DDRAIG_VGA
+#  define CONF_WITH_DDRAIG_VGA 1
+# endif
+
+#ifndef CONF_VRAM_ADDRESS
+# define CONF_VRAM_ADDRESS 0xA00000
+#endif
+# ifndef CONF_WITH_VDI_16BIT
+#  define CONF_WITH_VDI_16BIT 1
+# endif
 
 
 # ifndef USE_STOP_INSN_TO_FREE_HOST_CPU

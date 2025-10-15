@@ -102,10 +102,6 @@
         .extern _kcl_hook
         .extern _int_ikbd_duart
 
-#ifdef CONF_WITH_DDRAIGVGA_CONSOLE
-        .extern  _ddraigvga_base
-#endif
-
         .text
 
 /* basically initialize the 62 exception vectors. */

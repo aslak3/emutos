@@ -1596,7 +1596,7 @@
  * the wheel.
  */
 #ifndef CONF_WITH_EXTENDED_MOUSE
-# define CONF_WITH_EXTENDED_MOUSE 0
+# define CONF_WITH_EXTENDED_MOUSE 1
 #endif
 
 /*
@@ -2290,7 +2290,7 @@
 # endif
 #endif
 
-#if !CONF_WITH_VIDEL
+#if !CONF_WITH_VIDEL && !CONF_WITH_DDRAIG_VGA
 # if CONF_WITH_VDI_16BIT
 #  error CONF_WITH_VDI_16BIT requires CONF_WITH_VIDEL
 # endif

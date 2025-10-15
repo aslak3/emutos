@@ -16,7 +16,6 @@
 
 // Hard codeed for now, should be detected
 uint32_t ddraigvga_base = 0xF7F500;
-
 uint16_t ddraigvga_screenbuf[DRVGA_TEXTBUF_SIZE];
 
 void drvga_write_control_reg(uint16_t data)
@@ -95,13 +94,13 @@ static void init_system_vars(void)
 {
     KDEBUG(("init_system_vars()\n"));
     /* Screen address */
-    v_bas_ad = 0;
+    v_bas_ad = (UBYTE *)CONF_VRAM_ADDRESS;
     /* Fake 640x400x2 video mode (ST high) */
-    sshiftmod = 2;
+    sshiftmod = FALCON_REZ;
 
     /* Line A vars */
     /* Number of bitplanes */
-    v_planes = 1;
+    v_planes = 16;
     /* Bytes per scan-line */
     BYTES_LIN = 80;
     /* Vertical resolution */
@@ -127,7 +126,5 @@ void ddraigvga_screen_init(void)
     DRVGA_REG_WRITE(REG_INTERRUPT, 0x0001);
 
 }
-
-
 
 #endif
