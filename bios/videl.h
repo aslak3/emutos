@@ -1,7 +1,7 @@
 /*
- * screen.h - low-level screen routines
+ * videl.h - header for VIDEL support
  *
- * Copyright (C) 2013-2021 The EmuTOS development team
+ * Copyright (C) 2013-2024 The EmuTOS development team
  *
  * Authors:
  *  PES   Petr Stehlik
@@ -42,7 +42,11 @@
 #define FRGB_WHITE     0xffff00ff
 
 /* test for VDI support of videomode */
+#if CONF_WITH_VDI_16BIT
+#define VALID_VDI_BPP(mode) ((mode&VIDEL_BPPMASK)<=VIDEL_TRUECOLOR)
+#else
 #define VALID_VDI_BPP(mode) ((mode&VIDEL_BPPMASK)<=VIDEL_8BPP)
+#endif
 
 /* selected Falcon videomodes */
 #define FALCON_ST_HIGH      (VIDEL_COMPAT|VIDEL_80COL|VIDEL_1BPP)
@@ -53,7 +57,6 @@
 
 typedef struct {
     WORD vmode;         /* video mode (-1 => end marker) */
-    WORD monitor;       /* applicable monitors */
     UWORD hht;          /* H hold timer */
     UWORD hbb;          /* H border begin */
     UWORD hbe;          /* H border end */
@@ -69,7 +72,7 @@ typedef struct {
 } VMODE_ENTRY;
 
 void initialise_falcon_palette(WORD mode);
-const VMODE_ENTRY *lookup_videl_mode(WORD mode,WORD monitor);
+const VMODE_ENTRY *lookup_videl_mode(WORD mode);
 
 /* Public XBIOS functions */
 WORD vsetmode(WORD mode);

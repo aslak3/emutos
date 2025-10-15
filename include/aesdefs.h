@@ -1,7 +1,7 @@
 /*
  * aesdefs.h - Public definitions for AES system calls
  *
- * Copyright (C) 2019-2021 The EmuTOS development team
+ * Copyright (C) 2019-2022 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -549,6 +549,7 @@ typedef struct mform
 #define WF_SCREEN   17
 #define WF_COLOR    18
 #define WF_DCOLOR   19
+#define WF_OWNER    20
 
 /* request type: wind_calc() */
 #define WC_BORDER   0

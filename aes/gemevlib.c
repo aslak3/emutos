@@ -3,7 +3,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2021 The EmuTOS development team
+*                 2002-2024 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -124,6 +124,7 @@ void ev_mouse(MOBLK *pmo, WORD rets[])
 {
     ev_block(MU_M1, (LONG)pmo);
     ev_rets(rets);
+    rets[2] = button;   /* always use current button state */
 }
 
 

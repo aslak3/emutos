@@ -6,7 +6,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2021 The EmuTOS development team
+*                 2002-2025 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -749,30 +749,6 @@ void run_accs_and_desktop(void)
     gsx_wsclose();
 }
 
-#if CONF_WITH_ATARI_VIDEO || defined(MACHINE_AMIGA)
-/*
- * change resolution & reinitialise the palette registers
- *
- * note: passing a screen address of 0L to Setscreen() means reallocate
- * screen memory.  on non-Falcon systems (where the size of screen memory
- * is fixed), this is effectively the same as passing an address of -1L,
- * and our implementation of Setscreen() handles this without problems.
- *
- * however, if someone has hooked Setscreen() and does not understand
- * this, passing a screen address of 0L will set the screen address to
- * NULL, and the system will crash.  this happens, for example, when
- * running NVDI 4.11 on a Mega ST.
- *
- * therefore, for safety, we only use 0L on explicitly Falcon resolutions.
- */
-static void new_resolution(WORD rez, WORD videlmode)
-{
-    LONG addr = (rez==FALCON_REZ) ? 0L : -1L;
-
-    Setscreen(addr, addr, rez, videlmode);      /* change resolution */
-    initialise_palette_registers(rez, videlmode);
-}
-#endif
 
 void gem_main(void)
 {
@@ -787,7 +763,10 @@ void gem_main(void)
     dos_conws("\033f\033E");    /* cursor off, clear screen */
 
     /* read in first part of emudesk.inf */
-    n = readfile(INF_FILE_NAME, INF_SIZE, infbuf);
+    if (bootflags & BOOTFLAG_SKIP_AUTO_ACC)
+        n = 0;
+    else
+        n = readfile(INF_FILE_NAME, INF_SIZE, infbuf);
 
     if (n < 0L)
         n = 0L;
@@ -800,12 +779,15 @@ void gem_main(void)
         switch(gl_changerez) {
 #if CONF_WITH_ATARI_VIDEO
         case 1:                     /* ST(e) or TT display */
-            new_resolution(gl_nextrez-2, 0);
+            Setscreen(-1L, -1L, gl_nextrez-2, 0);
+            initialise_palette_registers(gl_nextrez-2, 0);
             break;
 #endif
 #if CONF_WITH_VIDEL || defined(MACHINE_AMIGA)
         case 2:                     /* Falcon display */
-            new_resolution(FALCON_REZ, gl_nextrez);
+            Setscreen(0L, 0L, FALCON_REZ, gl_nextrez);
+            /* note: no need to initialise the palette regs
+             * because Setscreen() has already done that */
             break;
 #endif
         }

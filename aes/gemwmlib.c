@@ -4,7 +4,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2021 The EmuTOS development team
+*                 2002-2025 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -46,11 +46,6 @@
 /*
  *  defines
  */
-#define XFULL   0
-#define YFULL   gl_hbox
-#define WFULL   gl_width
-#define HFULL   (gl_height - gl_hbox)
-
 #define DROP_SHADOW_SIZE    2   /* size of drop shadow on windows */
 
 GLOBAL WORD     gl_wtop;
@@ -485,7 +480,10 @@ void w_bldactive(WORD w_handle)
 {
     BOOL    istop, havevbar, havehbar;
     WORD    kind;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
     WORD    corner_x, corner_y;
+#pragma GCC diagnostic pop
     GRECT   t;
     WORD    tempw;
     WINDOW  *pw;
@@ -1288,7 +1286,7 @@ void wm_init(void)
     /* init rectangle list */
     D.w_win[0].w_rlist = po = get_orect();
     po->o_link = NULL;
-    r_set(&po->o_gr, XFULL, YFULL, WFULL, HFULL);
+    rc_copy(&gl_rfull, &po->o_gr);
     w_setup(ppd, DESKWH, NONE);
     w_setsize(WS_CURR, DESKWH, &gl_rscreen);
     w_setsize(WS_PREV, DESKWH, &gl_rscreen);
@@ -1312,6 +1310,18 @@ void wm_init(void)
     /* set up box width & height for window building */
     adj_wbox = gl_wbox + 2 * ADJ3DSTD;
     adj_hbox = gl_hbox + 2 * ADJ3DSTD;
+
+    /*
+     * the following mimics TOS4 behaviour and ensures that the work area
+     * of a full-screen window is the same as TOS4.  this is necessary to
+     * allow 4 columns of icons in a full-screen window in ST Low.
+     */
+    if (gl_width < 640)
+    {
+        adj_wbox--;
+        if (gl_height >= 400)   /* e.g. 320 x 400 */
+            adj_wbox--;
+    }
 #endif
 }
 
@@ -1565,6 +1575,19 @@ BOOL wm_get(WORD w_handle, WORD w_field, WORD *poutwds, WORD *pinwds)
         poutwds[2] = gl_wbcolor[gadget];
         break;
 #endif
+#if AES_VERSION >= 0x330
+    case WF_OWNER:
+        poutwds[0] = pwin->w_owner->p_pid;
+        poutwds[1] = (pwin->w_flags & VF_ISOPEN) != 0;
+        /*
+         * TODO: currently returns top-most and bottom-most window.
+         * A full implementation should walk the entire object tree
+         * to find the window immediately above and below.
+         */
+        poutwds[2] = gl_wtop;
+        poutwds[3] = W_TREE[ROOT].ob_head;
+        break;
+#endif
     default:
         return FALSE;
     }
@@ -1665,20 +1688,32 @@ BOOL wm_set(WORD w_handle, WORD w_field, WORD *pinwds)
         gl_newroot = pinwds[2];
         break;
     case WF_HSLSIZ:
-        pwin->w_hslsiz = pinwds[0];
-        gadget = W_HSLIDE;
+        if (pwin->w_hslsiz != pinwds[0])    /* size changed? */
+        {
+            pwin->w_hslsiz = pinwds[0];     /* yes, save new size */
+            gadget = W_HSLIDE;              /* & redraw slider    */
+        }
         break;
     case WF_VSLSIZ:
-        pwin->w_vslsiz = pinwds[0];
-        gadget = W_VSLIDE;
+        if (pwin->w_vslsiz != pinwds[0])    /* size changed? */
+        {
+            pwin->w_vslsiz = pinwds[0];     /* yes, save new size */
+            gadget = W_VSLIDE;              /* & redraw slider    */
+        }
         break;
     case WF_HSLIDE:
-        pwin->w_hslide = pinwds[0];
-        gadget = W_HSLIDE;
+        if (pwin->w_hslide != pinwds[0])    /* position changed? */
+        {
+            pwin->w_hslide = pinwds[0];     /* yes, save new posn */
+            gadget = W_HSLIDE;              /* & redraw slider    */
+        }
         break;
     case WF_VSLIDE:
-        pwin->w_vslide = pinwds[0];
-        gadget = W_VSLIDE;
+        if (pwin->w_vslide != pinwds[0])    /* position changed? */
+        {
+            pwin->w_vslide = pinwds[0];     /* yes, save new posn */
+            gadget = W_VSLIDE;              /* & redraw slider    */
+        }
         break;
 #if CONF_WITH_WINDOW_COLOURS
     case WF_COLOR:

@@ -1,7 +1,7 @@
 /*
  * blkdev.c - BIOS block device functions
  *
- * Copyright (C) 2002-2021 The EmuTOS development team
+ * Copyright (C) 2002-2025 The EmuTOS development team
  *
  * Authors:
  *  MAD     Martin Doering
@@ -20,6 +20,7 @@
 #include "tosvars.h"
 #include "ahdi.h"
 #include "floppy.h"
+#include "machine.h"
 #include "disk.h"
 #include "ikbd.h"
 #include "blkdev.h"
@@ -28,6 +29,7 @@
 #include "scsi.h"
 #include "ide.h"
 #include "sd.h"
+#include "scsidriv.h"
 #include "biosext.h"
 #include "biosmem.h"
 #include "xhdi.h"
@@ -186,6 +188,10 @@ static void blkdev_hdv_init(void)
      * do bus initialisation, such as setting delay values
      */
     bus_init();
+
+#if CONF_WITH_SCSI_DRIVER
+    scsidriv_init();    /* detect all devices */
+#endif
 
     disk_init_all();    /* Detect hard disk partitions */
 
@@ -379,7 +385,7 @@ int add_partition(UWORD unit, LONG *devices_available, char id[], ULONG start, U
     b->unit  = unit;
 
     /* flag partitions that support GetBPB() */
-    if (getbpb_allowed(id))
+    if (getbpb_allowed(b->id))
         b->flags |= GETBPB_ALLOWED;
 
     /* make just GEM/BGM partitions visible to applications */
@@ -403,7 +409,7 @@ int add_partition(UWORD unit, LONG *devices_available, char id[], ULONG start, U
 
 static LONG blkdev_rwabs(WORD rw, UBYTE *buf, WORD cnt, WORD recnr, WORD dev, LONG lrecnr)
 {
-    int retries = RWABS_RETRIES;
+    int retry_count, retries;
     int unit = dev;
     LONG lcount = cnt;
     LONG retval;
@@ -428,8 +434,7 @@ static LONG blkdev_rwabs(WORD rw, UBYTE *buf, WORD cnt, WORD recnr, WORD dev, LO
     if (recnr != -1)            /* if long offset not used */
         lrecnr = (UWORD)recnr;  /* recnr as unsigned to enable 16-bit recn */
 
-    if (rw & RW_NORETRIES)
-        retries = 1;
+    retry_count = (rw & RW_NORETRIES) ? 1 : RWABS_RETRIES;
 
     /*
      * are we accessing a physical unit or a logical device?
@@ -509,6 +514,7 @@ static LONG blkdev_rwabs(WORD rw, UBYTE *buf, WORD cnt, WORD recnr, WORD dev, LO
         /* split the transfer to 15-bit count blocks (lowlevel functions take WORD count) */
         WORD scount = (lcount > CNTMAX) ? CNTMAX : lcount;
         do {        /* outer loop retries if critical event handler says we should */
+            retries = retry_count;
             do {    /* inner loop automatically retries */
                 retval = (unit<NUMFLOPPIES) ? floppy_rw(rw, buf, scount, lrecnr, geo->spt, geo->sides, unit)
                                             : disk_rw(unit, (rw & ~RW_NOTRANSLATE), lrecnr, scount, buf);
@@ -520,7 +526,7 @@ static LONG blkdev_rwabs(WORD rw, UBYTE *buf, WORD cnt, WORD recnr, WORD dev, LO
         } while(retval == CRITIC_RETRY_REQUEST);
         if (retval < 0)     /* error, retries exhausted */
             break;
-        buf += scount << psshift;
+        buf += (ULONG)scount << psshift;
         lrecnr += scount;
         lcount -= scount;
     } while(lcount > 0);
@@ -653,7 +659,14 @@ LONG blkdev_getbpb(WORD dev)
         return 0L;
     }
 
-    /* don't login a disk if the number of FATs is unsupported */
+    /*
+     * don't login a disk if the number of FATs is unsupported,
+     * but for compatibility with TOS accept "zero" and then assume 2 FATs
+     */
+    if (b->fat == 0)
+    {
+        b->fat = 2;
+    }
     if ((b->fat < MIN_FATS) || (b->fat > MAX_FATS))
     {
         KDEBUG(("invalid FAT count %u\n",b->fat));
@@ -697,8 +710,9 @@ LONG blkdev_getbpb(WORD dev)
     /*
      * with 2 FATs, use 2nd FAT by default.
      * The code that flushes the FATs also assumes this.
+     * When support for single FAT is disabled, assume 2 FATs like Atari TOS.
      */
-    if (b->fat >= 2)
+    if (!CONF_WITH_1FAT_SUPPORT || (b->fat >= 2))
         bdev->bpb.fatrec += bdev->bpb.fsiz;
     bdev->bpb.datrec = bdev->bpb.fatrec + bdev->bpb.fsiz + bdev->bpb.rdlen;
 
@@ -706,12 +720,26 @@ LONG blkdev_getbpb(WORD dev)
      * determine number of clusters
      */
     tmp = getiword(b->sec);
-    /* handle DOS-style disks (512-byte logical sectors) >= 32MB */
-    if (tmp == 0L)
+    /*
+     * a value of zero for total sectors should mean that we have a DOS-style
+     * disk (512-byte logical sectors) >= 32MB, but it can also be due to an
+     * invalid boot sector.  Atari TOS accepts a zero value & logs in the disk
+     * (ending up with a negative value for number of clusters in the BPB).
+     *
+     * in the general case, EmuTOS must assume that zeros in b->sec means
+     * that b->sec2 contains a valid value.  however, for floppies we can
+     * assume that it's an invalid boot sector.  in this case, we arrange
+     * to set a cluster count of zero.
+     */
+    if ((tmp == 0UL) && (unit >= NUMFLOPPIES))
         tmp = MAKE_ULONG(getiword(b16->sec2+2), getiword(b16->sec2));
-    tmp = (tmp - bdev->bpb.datrec) / b->spc;
-    if (tmp > MAX_FAT16_CLUSTERS)           /* FAT32 - unsupported */
+    if (tmp < bdev->bpb.datrec)
+        tmp = 0UL;
+    else
+        tmp = (tmp - bdev->bpb.datrec) / b->spc;
+    if ((tmp > MAX_FAT16_CLUSTERS) || (bdev->bpb.fsiz == 0))
     {
+        /* FAT32 - unsupported */
         KINFO(("Disk %c: is inaccessible (FAT32)\n",dev+'A'));
         bdev->bpb.recsiz = 0;               /* mark it for XHDI */
         return 0L;
@@ -726,8 +754,10 @@ LONG blkdev_getbpb(WORD dev)
     bdev->bpb.b_flags = 0;         /* FAT12 */
     if (bdev->bpb.numcl > MAX_FAT12_CLUSTERS)
         bdev->bpb.b_flags |= B_16;      /* FAT16 */
+#if CONF_WITH_1FAT_SUPPORT
     if (b->fat < 2)
         bdev->bpb.b_flags |= B_1FAT;
+#endif
 
     /* additional geometry info */
     bdev->geometry.sides = getiword(b->sides);

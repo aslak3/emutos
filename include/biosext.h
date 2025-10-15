@@ -1,7 +1,7 @@
 /*
  * biosext.h - EmuTOS BIOS extensions not callable with trap
  *
- * Copyright (C) 2016-2021 The EmuTOS development team
+ * Copyright (C) 2016-2024 The EmuTOS development team
  *
  * This file is distributed under the GPL, version 2 or at your
  * option any later version.  See doc/license.txt for details.
@@ -46,7 +46,6 @@ extern UBYTE bootflags;
 extern LONG video_ram_size;
 extern void *video_ram_addr;
 #endif
-ULONG calc_vram_size(void);
 #define EXTRA_VRAM_SIZE 256UL   /* amount to overallocate, like Atari TOS */
 
 void flush_data_cache(void *start, long size);
@@ -69,6 +68,10 @@ void halt(void) NORETURN;
 
 #if CONF_WITH_SHUTDOWN
 BOOL can_shutdown(void);
+#endif
+
+#if CONF_WITH_EJECT
+void flop_eject(void);
 #endif
 
 #if CONF_WITH_EXTENDED_MOUSE
@@ -99,6 +102,7 @@ BOOL is_text_pointer(const void *p);
 /* VIDEL routines */
 WORD get_videl_mode(void);
 #ifdef MACHINE_AMIGA
+extern int amiga_is_ntsc;
 WORD amiga_vgetmode(void);
 #endif
 

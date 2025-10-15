@@ -5,7 +5,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2020 The EmuTOS development team
+*                 2002-2022 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -21,6 +21,7 @@
 #include "emutos.h"
 #include "struct.h"
 #include "aesdefs.h"
+#include "aesext.h"
 #include "aesvars.h"
 #include "obdefs.h"
 
@@ -196,6 +197,12 @@ static void hctl_window(WORD w_handle, WORD mx, WORD my)
     r_get(&t, &x, &y, &w, &h);
     kind = pwin->w_kind;
 
+#if CONF_WITH_3D_OBJECTS
+    /* since we animate gadgets, we must set clipping here */
+    ob_actxywh(gl_awind, gadget, &f);
+    gsx_sclip(&f);
+#endif
+
     switch(cpt)
     {
     case W_CLOSER:
@@ -221,9 +228,12 @@ static void hctl_window(WORD w_handle, WORD mx, WORD my)
         {
 #if CONF_WITH_3D_OBJECTS
             ob_change(gl_awind, gadget, selected, TRUE);
-#endif
+            /* prevent the mover gadget from being moved completely offscreen */
+            r_set(&f, 0, gl_hbox, gl_rscreen.g_w+w-gl_wbox-6-2*ADJ3DSTD, MAX_COORDINATE);
+#else
             /* prevent the mover gadget from being moved completely offscreen */
             r_set(&f, 0, gl_hbox, gl_rscreen.g_w+w-gl_wbox-6, MAX_COORDINATE);
+#endif
             gr_dragbox(w, h, x, y, &f, &x, &y);
             message = WM_MOVED;
         }

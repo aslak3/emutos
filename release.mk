@@ -1,7 +1,7 @@
 #
 # release.mk - Makefile fragment for building releases
 #
-# Copyright (C) 2011-2021 The EmuTOS development team.
+# Copyright (C) 2011-2024 The EmuTOS development team.
 #
 # Authors:
 #  VRI      Vincent Rivière
@@ -18,7 +18,7 @@
 # This subset of the doc directory will be included in all the binary archives
 DOCFILES = doc/announce.txt doc/authors.txt doc/bugs.txt doc/changelog.txt \
   doc/emudesk.txt doc/incompatible.txt doc/license.txt doc/status.txt \
-  doc/todo.txt doc/xhdi.txt
+  doc/todo.txt doc/tools.txt doc/xhdi.txt
 
 # This subset of the extras directory will be included in all the binary archives
 # that have a desktop
@@ -178,7 +178,7 @@ release-firebee:
 	$(MAKE) clean
 	$(MAKE) allfirebee
 	mkdir $(RELEASE_DIR)/$(RELEASE_FIREBEE)
-	cp emutosfb*.s19 $(RELEASE_DIR)/$(RELEASE_FIREBEE)
+	cp etosfb*.s19 $(RELEASE_DIR)/$(RELEASE_FIREBEE)
 	cp desk/icon.def $(RELEASE_DIR)/$(RELEASE_FIREBEE)/emuicon.def
 	cp desk/icon.rsc $(RELEASE_DIR)/$(RELEASE_FIREBEE)/emuicon.rsc
 	cat doc/readme-firebee.txt readme.txt >$(RELEASE_DIR)/$(RELEASE_FIREBEE)/readme.txt

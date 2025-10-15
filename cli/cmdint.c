@@ -1,7 +1,7 @@
 /*
  * EmuCON2 builtin commands
  *
- * Copyright (C) 2013-2020 The EmuTOS development team
+ * Copyright (C) 2013-2024 The EmuTOS development team
  *
  * Authors:
  *  RFB    Roger Burrows
@@ -176,14 +176,6 @@ const COMMAND *p;
             return run_setdrv;
 
     /*
-     *  allow -h with any command to provide help
-     */
-    if ((argc == 2) && strequal(argv[1],"-h")) {
-        argv[1] = argv[0];
-        argv[0] = "help";
-    }
-
-    /*
      *  scan command table
      */
     for (p = cmdtable; p->func; p++) {
@@ -192,6 +184,17 @@ const COMMAND *p;
         if (p->synonym)
             if (strequal(argv[0],p->synonym))
                 break;
+    }
+    if (!p->func)
+        return NULL;
+
+    /*
+     *  builtin command: allow -h to provide help
+     */
+    if ((argc == 2) && strequal(argv[1],"-h")) {
+        argv[1] = argv[0];
+        argv[0] = "help";
+        return run_help;
     }
 
     argc--;
@@ -471,9 +474,7 @@ PRIVATE LONG run_mv(WORD argc,char **argv)
 
 PRIVATE LONG run_path(WORD argc,char **argv)
 {
-char temp[MAXPATHLEN];
 const char *p;
-LONG rc = 0L;
 
     if (argc == 1) {
         p = user_path;
@@ -481,26 +482,11 @@ LONG rc = 0L;
             p = _("(empty)");
         message(" ");
         messagenl(p);
-        return 0L;
-    }
-
-    for (p = argv[1]; *p; ) {
-        if (!get_path_component(&p,temp))
-            break;
-        rc = check_path_component(temp);
-        if (rc < 0L)
-            break;
-    }
-
-    if (rc == 0L) {
-        strcpy(user_path,argv[1]);
     } else {
-        message(" ");
-        message(temp);
-        message(" ");
+        strcpy(user_path,argv[1]);
     }
 
-    return rc;
+    return 0L;
 }
 
 PRIVATE LONG run_pwd(WORD argc,char **argv)

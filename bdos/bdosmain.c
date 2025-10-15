@@ -2,7 +2,7 @@
  * bdosmain.c - GEMDOS main function dispatcher
  *
  * Copyright (C) 2001 Lineo, Inc.
- *               2002-2021 The EmuTOS development team
+ *               2002-2024 The EmuTOS development team
  *
  * Authors:
  *  EWF  Eric W. Fleischman
@@ -379,7 +379,10 @@ static void freetree(DND *d)
 
 
 /*
- *  offree -
+ *  offree - free up all handles associated with the specified DMD
+ *
+ *  this is used when media change is detected on a device, in order
+ *  to cause subsequent I/Os to that device for those handles to fail
  */
 static void offree(DMD *d)
 {
@@ -393,10 +396,29 @@ static void offree(DMD *d)
             if (f->o_dmd == d)
             {
                 xmfreblk(f);
-                sft[i].f_ofd = 0;
-                sft[i].f_own = 0;
+                sft[i].f_ofd = NULL;
+                sft[i].f_own = NULL;
                 sft[i].f_use = 0;
             }
+        }
+    }
+}
+
+
+/*
+ * mark_bcbs_invalid - mark the BCBs for the specified drive as invalid
+ */
+static void mark_bcbs_invalid(int drv)
+{
+    BCB *bx;
+    int i;
+
+    for (i = 0; i < 2; i++)
+    {
+        for (bx = bufl[i]; bx; bx = bx->b_link)
+        {
+            if (bx->b_bufdrv == drv)
+                bx->b_bufdrv = -1;
         }
     }
 }
@@ -410,7 +432,7 @@ long osif(short *pw)
 {
     char **pb, *pb2, *p, ctmp;
     BPB *b;
-    BCB *bx;
+    DMD *dmd;
     DND *dn;
     int typ, h, i, fn;
     int num, max;
@@ -434,18 +456,16 @@ restrt:
         if (rc == E_CHNG)
         {
             /* first, out with the old stuff */
-            dn = drvtbl[errdrv]->m_dtl;
-            offree(drvtbl[errdrv]);
-            xmfreblk(drvtbl[errdrv]);
-            drvtbl[errdrv] = 0;
+            dmd = drvtbl[errdrv];
+            dn = dmd->m_dtl;
+            offree(dmd);
+            xmfreblk(dmd);
+            drvtbl[errdrv] = NULL;
 
             if (dn)
                 freetree(dn);
 
-            for (i = 0; i < 2; i++)
-                for (bx = bufl[i]; bx; bx = bx->b_link)
-                    if (bx->b_bufdrv == errdrv)
-                        bx->b_bufdrv = -1;
+            mark_bcbs_invalid(errdrv);
 
             /* then, in with the new */
             b = (BPB *)Getbpb(errdrv);
@@ -464,11 +484,8 @@ restrt:
         }
 
         /* else handle as hard error on disk for now */
+        mark_bcbs_invalid(errdrv);
 
-        for (i = 0; i < 2; i++)
-            for (bx = bufl[i]; bx; bx = bx->b_link)
-                if (bx->b_bufdrv == errdrv)
-                    bx->b_bufdrv = -1;
         return rc;
     }
 

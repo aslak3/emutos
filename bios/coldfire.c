@@ -1,7 +1,7 @@
 /*
  * coldfire.c - ColdFire specific functions
  *
- * Copyright (C) 2013-2021 The EmuTOS development team
+ * Copyright (C) 2013-2024 The EmuTOS development team
  *
  * Authors:
  *  VRI   Vincent Rivière
@@ -35,7 +35,12 @@ void coldfire_early_init(void)
 #if defined(MACHINE_M548X) && CONF_WITH_IDE && !CONF_WITH_BAS_MEMORY_MAP
     m548x_init_cpld();
 #endif
+    coldfire_rs232_disable_interrupt();
 }
+
+MCF_COOKIE cookie_mcf;
+
+ULONG cf_spi_chip_select;
 
 #if CONF_WITH_COLDFIRE_RS232
 
@@ -80,12 +85,8 @@ void coldfire_init_system_timer(void)
     MCF_INTC_IMRH &= ~MCF_INTC_IMRH_INT_MASK61;
 
     /* Set the frequency to 200 Hz (SDCLK / PRE / CNT) */
-#ifdef SDCLK_FREQUENCY_MHZ
-    MCF_GPT1_GCIR = MCF_GPT_GCIR_PRE(SDCLK_FREQUENCY_MHZ) |
+    MCF_GPT1_GCIR = MCF_GPT_GCIR_PRE((ULONG)cookie_mcf.sysbus_frequency) |
                     MCF_GPT_GCIR_CNT(5000UL);
-#else
-# error Unknown SDCLK for this machine
-#endif
 
     /* Enable the timer */
     MCF_GPT1_GMS = MCF_GPT_GMS_CE       | /* Enable */
@@ -190,6 +191,25 @@ void coldfire_rs232_enable_interrupt(void)
     MCF_INTC_IMRH &= ~MCF_INTC_IMRH_INT_MASK35;
 }
 
+void coldfire_rs232_disable_interrupt(void)
+{
+    WORD old_sr;
+
+    /* Mask all interrupt sources within the PSC */
+    MCF_PSC0_PSCIMR = 0;
+
+    /*
+     * Mask the reception of the interrupt.
+     * Note that according to the MCF547x Reference Manual masking
+     * an interrupt should always be done while the IPL is higher
+     * than the level configured for the respective interrupt.
+     */
+    old_sr = set_sr(0x2700);
+    MCF_INTC_IMRH |= MCF_INTC_IMRH_INT_MASK35;
+    set_sr(old_sr);
+}
+
+
 /* Called from assembler routine coldfire_int_35 */
 void coldfire_rs232_interrupt_handler(void)
 {
@@ -218,8 +238,6 @@ void coldfire_rs232_interrupt_handler(void)
     }
 }
 
-MCF_COOKIE cookie_mcf;
-
 void setvalue_mcf(void)
 {
     cookie_mcf.magic[0] = 0x4d; /* 'M' */
@@ -235,6 +253,7 @@ void setvalue_mcf(void)
 #ifdef MACHINE_FIREBEE
     strcpy(cookie_mcf.device_name, "MCF5474");
     cookie_mcf.sysbus_frequency = 132;
+    cf_spi_chip_select = MCF_DSPI_DTFR_CS5;
 #else
     switch (MCF_SIU_JTAGID & MCF_SIU_JTAGID_PROCESSOR)
     {
@@ -242,25 +261,31 @@ void setvalue_mcf(void)
             strcpy(cookie_mcf.device_name, "MCF5484");
             /* If a MCF5484 we guess it is a LITE board */
             cookie_mcf.sysbus_frequency = 100;
+            cf_spi_chip_select = MCF_VALUE_UNKNOWN;
             break;
         case MCF_SIU_JTAGID_MCF5485:
             strcpy(cookie_mcf.device_name, "MCF5485");
             /* If a MCF5485 we guess it is a EVB board */
             cookie_mcf.sysbus_frequency = 133;
+            cf_spi_chip_select = MCF_DSPI_DTFR_CS2;
             break;
         case MCF_SIU_JTAGID_MCF5474:
             strcpy(cookie_mcf.device_name, "MCF5474");
             /* If a MCF5474 we guess it is a LITE board */
             cookie_mcf.sysbus_frequency = 100;
+            cf_spi_chip_select = MCF_VALUE_UNKNOWN;
             break;
         case MCF_SIU_JTAGID_MCF5475:
             strcpy(cookie_mcf.device_name, "MCF5475");
             /* If a MCF5475 we guess it is a EVB board */
             cookie_mcf.sysbus_frequency = 133;
+            cf_spi_chip_select = MCF_DSPI_DTFR_CS2;
             break;
         default:
             strcpy(cookie_mcf.device_name, "UNKNOWN");
-            cookie_mcf.sysbus_frequency = MCF_VALUE_UNKNOWN;
+            cookie_mcf.sysbus_frequency = 100;
+            cf_spi_chip_select = MCF_VALUE_UNKNOWN;
+            KDEBUG(("Unknown ColdFire processor. Defaulting SDCLK to 100 MHz.\n"));
             break;
     }
 #endif

@@ -5,6 +5,7 @@ without needing to replace the system ROM.
 This is the simplest way to test EmuTOS on real hardware from a floppy.
 The drawback is less available RAM compared to ROM versions.
 
+emutosca.st - Catalan (PAL)
 emutoscz.st - Czech (PAL)
 emutosde.st - German (PAL)
 emutoses.st - Spanish (PAL)
@@ -16,6 +17,7 @@ emutosit.st - Italian (PAL)
 emutosnl.st - Dutch (PAL)
 emutosno.st - Norwegian (PAL)
 emutospl.st - Polish (PAL)
+emutosro.st - Romanian (PAL)
 emutosru.st - Russian (PAL)
 emutosse.st - Swedish (PAL)
 emutossg.st - Swiss German (PAL)

@@ -1,7 +1,7 @@
 /*
  * emutos.ld - Custom linker script for EmuTOS ROM
  *
- * Copyright (C) 2016-2020 The EmuTOS development team
+ * Copyright (C) 2016-2024 The EmuTOS development team
  *
  * Authors:
  *  VRI   Vincent Rivière
@@ -121,8 +121,11 @@ SECTIONS
     {
         CREATE_OBJECT_SYMBOLS
         __text = .;
-        *(.text)
-        *(.rodata .rodata.*) /* Only present in ELF objects */
+        *(.text .rodata .rodata.*)
+        /* Note: .rodata sections are only present in ELF objects.
+         * We mix .text and .rodata to keep critical parts (such as BIOS
+         * and fonts) at the beginning of the ROM.
+         */
         __etext = .;
     } >REGION_READ_ONLY =0x4afc
 
@@ -151,9 +154,10 @@ SECTIONS
 
     /* This section is always the last one stored in ST-RAM.
      * It is usually empty, just used to calculate the last address
-     * of ST-RAM statically used by EmuTOS.
+     * of ST-RAM statically used by EmuTOS. If needed, the address
+     * is rounded up to the next multiple of four.
      */
-    .laststram :
+    .laststram : ALIGN(4)
     {
         __end_os_stram = .;
     } >stram
@@ -177,17 +181,6 @@ SECTIONS
 }
 
 #ifdef ELF_TOOLCHAIN
-/* Our code is compiled with -fleading-underscore, so the references to external
- * libraries will include a leading underscore. However, libgcc was not compiled
- * with that option, so its symbols do not start with a leading underscore. So
- * we need to define leading-underscore aliases to the no-leading-underscore
- * functions in libgcc.
- */
-#define DEFINE_SYMBOL_ALIAS(alias, impl) EXTERN(impl) PROVIDE(alias = impl);
-#define ELF_LIB_REF(symbol) DEFINE_SYMBOL_ALIAS(_##symbol, symbol)
-ELF_LIB_REF(__mulsi3)
-ELF_LIB_REF(__divsi3)
-ELF_LIB_REF(__modsi3)
-ELF_LIB_REF(__udivsi3)
-ELF_LIB_REF(__umodsi3)
+/* Fix leading-underscore issues */
+#include "tools/elfalias.ld"
 #endif

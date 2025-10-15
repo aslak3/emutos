@@ -12,6 +12,7 @@ Also, they only work with a plain 68000 CPU.
 
 Each ROM contains a single language:
 
+etos192ca.img - Catalan (PAL)
 etos192cz.img - Czech (PAL)
 etos192de.img - German (PAL)
 etos192es.img - Spanish (PAL)
@@ -23,6 +24,7 @@ etos192it.img - Italian (PAL)
 etos192nl.img - Dutch (PAL)
 etos192no.img - Norwegian (PAL)
 etos192pl.img - Polish (PAL)
+etos192ro.img - Romanian (PAL)
 etos192ru.img - Russian (PAL)
 etos192se.img - Swedish (PAL)
 etos192sg.img - Swiss German (PAL)

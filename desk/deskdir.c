@@ -5,7 +5,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2021 The EmuTOS development team
+*                 2002-2025 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -27,6 +27,7 @@
 #include "optimize.h"
 #include "miscutil.h"
 
+#include "aesdefs.h"
 #include "deskbind.h"
 #include "deskglob.h"
 #include "deskapp.h"
@@ -92,7 +93,7 @@ void draw_dial(OBJECT *tree)
 static WORD do_namecon(void)
 {
     OBJECT *tree = desk_rs_trees[ADCPALER];
-    WORD ob;
+    WORD ob, xd, yd, wd, hd;
 
     desk_busy_off();
     if (ml_havebox)
@@ -103,6 +104,17 @@ static WORD do_namecon(void)
         ml_havebox = TRUE;
     }
     form_do(tree, 0);
+
+    /*
+     * trigger a redraw for the copy alert dialog so that a redraw message
+     * is issued for the copy alert area.  when end_dialog() is subsequently
+     * called for the copy/delete dialog, the evnt_multi() loop will handle
+     * this redraw message as well as the one for the copy/delete dialog,
+     * so that both dialog areas are redrawn properly.
+     */
+    form_center(tree, &xd, &yd, &wd, &hd);
+    form_dial(FMD_FINISH, 0, 0, 0, 0, xd, yd, wd, hd);
+
     draw_dial(desk_rs_trees[ADCPYDEL]);
     desk_busy_on();
 
@@ -165,8 +177,9 @@ static void sub_path(char *path)
 char *add_fname(char *path, char *new_name)
 {
     path = filename_start(path);
+    strcpy(path, new_name);
 
-    return strcpy(path, new_name);
+    return path;
 }
 
 
@@ -790,8 +803,22 @@ static WORD d_dofileren(char *oldname, char *newname, BOOL is_folder)
          * we cannot rename because the file/folder exists, so
          * prompt for new name
          */
-        if (get_new_name(newname) <= 0)
+        ret = get_new_name(newname);
+
+        /* user clicked stop or skip */
+        if (ret <= 0)
             break;
+
+        /*
+         * handle the case where a user wants to move (rename) a
+         * file to replace an existing file. this makes no sense when
+         * oldname == newname. but when the user enters a different
+         * name and confirms that name by not changing it in the
+         * dialog that pops up next, we delete the existing file so
+         * that rename will succeed.
+         */
+        if ((ret == 1) && (strcmp(oldname,newname) != 0))
+            dos_delete(newname);
     }
 
     return FALSE;

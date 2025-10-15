@@ -11,6 +11,18 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 #: bios/bios.c
+msgid "Memory test"
+msgstr "Bellek testi"
+
+#: bios/bios.c
+msgid "complete"
+msgstr "tamam"
+
+#: bios/bios.c
+msgid "aborted"
+msgstr "kesildi"
+
+#: bios/bios.c
 msgid ""
 "System halted!\n"
 msgstr ""
@@ -46,11 +58,11 @@ msgstr "Önyükleme zamaný"
 
 #: bios/initinfo.c
 msgid "Hold <Control> to skip AUTO/ACC"
-msgstr "AUTO/ACC atlamak için <Kontrol> tuþuna basýn"
+msgstr "<Kontrol> basarsanýz AUTO/ACC atlar"
 
 #: bios/initinfo.c
 msgid "Hold <Alternate> to skip HDD boot"
-msgstr "Sabit diskten yüklemeyi atlamak için <Alternate> tuþuna basýn"
+msgstr "<Alternate> basarsanýz HDD boot atlar"
 
 #: bios/initinfo.c
 msgid "Press key 'X' to boot from X:"
@@ -62,7 +74,7 @@ msgstr "Erken konsol için <Esc> tuþuna basýn"
 
 #: bios/initinfo.c
 msgid "Hold <Shift> to pause this screen"
-msgstr "Ekraný duraklatmak için <Shift> tuþuna basýn"
+msgstr "Duraklatmak için <Shift> tuþuna basýn"
 
 #: bios/kprint.c
 msgid ""
@@ -82,10 +94,6 @@ msgstr ""
 "Daha fazlasý için FOLDR100.PRG kullanýn.\n"
 "Sistem durdu!\n"
 
-#: aes/gem_rsc.c desk/desk_rsc.c
-msgid "Drive:"
-msgstr "Sürücü:"
-
 #: aes/gem_rsc.c
 msgid "Selection: ________.___"
 msgstr "Seçim: ________.___"
@@ -93,6 +101,10 @@ msgstr "Seçim: ________.___"
 #: aes/gem_rsc.c
 msgid "Directory:"
 msgstr "Dizin:"
+
+#: aes/gem_rsc.c desk/desk_rsc.c
+msgid "Drive:"
+msgstr "Sürücü:"
 
 #: aes/gem_rsc.c desk/desk_rsc.c
 msgid "OK"
@@ -262,12 +274,16 @@ msgid "ITEM SELECTOR"
 msgstr "SEÇÝM"
 
 #: desk/desk_rsc.c
-msgid "Number of folders: _____"
-msgstr "Klasör adedi: _____"
+msgid "Name: ________.___"
+msgstr "Adý: ________.___"
 
 #: desk/desk_rsc.c
-msgid "Number of files: _____"
-msgstr "Dosya adedi: _____"
+msgid "Number of folders:         _____"
+msgstr "Klasör adedi:         _____ "
+
+#: desk/desk_rsc.c
+msgid "Number of files:         _____"
+msgstr "Dosya adedi:         _____ "
 
 #: desk/desk_rsc.c
 msgid "Skip"
@@ -290,36 +306,32 @@ msgid "No"
 msgstr "Hayýr"
 
 #: desk/desk_rsc.c
-msgid "Name: ________.___"
-msgstr "Adý: ________.___"
+msgid "Size:   __________"
+msgstr "Boyut:   __________"
 
 #: desk/desk_rsc.c
-msgid "Size: __________"
-msgstr "Boyut: __________"
+msgid "Date:   __________"
+msgstr "Tarih:   __________"
 
 #: desk/desk_rsc.c
-msgid "Date: __________"
-msgstr "Tarih: __________"
+msgid "Time:   __:__ __  "
+msgstr "Zaman:   __:__ __  "
 
 #: desk/desk_rsc.c
-msgid "Time: __:__ __"
-msgstr "Zaman: __: __ __"
+msgid "Drive identifier:  _           "
+msgstr "Sürücü kimliði:  _            "
 
 #: desk/desk_rsc.c
-msgid "Drive identifier:     _"
-msgstr "Sürücü kimliði: _"
+msgid "Disk label:  ________.___"
+msgstr "Sürücü etiketi:  ________.___ "
 
 #: desk/desk_rsc.c
-msgid "Disk label: ________.___"
-msgstr "Sürücü etiketi: ________.___"
+msgid "Bytes used:    __________"
+msgstr "Kullanýlan bayt:    __________ "
 
 #: desk/desk_rsc.c
-msgid "Bytes used: __________"
-msgstr "Kullanýlan bayt: __________"
-
-#: desk/desk_rsc.c
-msgid "Bytes available: __________"
-msgstr "Kalan bayt: __________"
+msgid "Bytes available:    __________"
+msgstr "Kalan bayt:    __________ "
 
 #: desk/desk_rsc.c
 msgid "Identifier: _:"
@@ -355,7 +367,7 @@ msgstr "Kopyanýn adý: ________.___"
 
 #: desk/desk_rsc.c
 msgid "Key: ^_"
-msgstr "Anahtar: ^ _"
+msgstr "Anahtar: ^_"
 
 #: desk/desk_rsc.c
 msgid "Free RAM: _____________________"
@@ -428,6 +440,10 @@ msgstr "  Sil ..."
 #: desk/desk_rsc.c
 msgid "  Format floppy..."
 msgstr "  Disket biçimlendir..."
+
+#: desk/desk_rsc.c
+msgid "  Eject floppy"
+msgstr "  Disketi çýkar"
 
 #: desk/desk_rsc.c
 msgid "  Execute EmuCON"
@@ -603,7 +619,7 @@ msgstr "UYGULAMA KUR"
 
 #: desk/desk_rsc.c
 msgid "Boot status:"
-msgstr "Önyükleme durumu:"
+msgstr "Önyükleme:"
 
 #: desk/desk_rsc.c
 msgid "Auto"
@@ -718,14 +734,6 @@ msgid "DESKTOP CONFIGURATION"
 msgstr "MASAÜSTÜ AYARLARI"
 
 #: desk/desk_rsc.c
-msgid "Default directory:"
-msgstr "Varsayýlan dizin:"
-
-#: desk/desk_rsc.c
-msgid "Input parameter:"
-msgstr "Giriþ parametresi:"
-
-#: desk/desk_rsc.c
 msgid "Function keys:"
 msgstr "Fonksiyon tuþlarý:"
 
@@ -798,16 +806,20 @@ msgid "FORMAT FLOPPY DISKETTE"
 msgstr "DÝSKET BÝÇÝMLENDÝR"
 
 #: desk/desk_rsc.c
-msgid "Single sided"
-msgstr "Tek taraflý"
+msgid "SS 360 K"
+msgstr "SS 360 K"
 
 #: desk/desk_rsc.c
-msgid "Double sided"
-msgstr "Ýki taraflý"
+msgid "DS 720 K"
+msgstr "DS 720 K"
 
 #: desk/desk_rsc.c
-msgid "High density"
-msgstr "Yüksek yoðunluk"
+msgid "DS 800 K"
+msgstr "DS 800 K"
+
+#: desk/desk_rsc.c
+msgid "HD 1.44 M"
+msgstr "HD 1.44 M"
 
 #: desk/desk_rsc.c
 msgid "SET BACKGROUND"

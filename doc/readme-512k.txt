@@ -11,6 +11,7 @@ The desktop features are comparable to Atari TOS 3 or 4.
 
 Each ROM contains a single language for display:
 
+etos512ca.img - Catalan (PAL)
 etos512cz.img - Czech (PAL)
 etos512de.img - German (PAL)
 etos512es.img - Spanish (PAL)
@@ -22,6 +23,7 @@ etos512it.img - Italian (PAL)
 etos512nl.img - Dutch (PAL)
 etos512no.img - Norwegian (PAL)
 etos512pl.img - Polish (PAL)
+etos512ro.img - Romanian (PAL)
 etos512ru.img - Russian (PAL)
 etos512se.img - Swedish (PAL)
 etos512sg.img - Swiss German (PAL)

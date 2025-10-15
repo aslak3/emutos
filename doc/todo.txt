@@ -11,7 +11,6 @@ VDI
   the internal calculations of increase in x direction, like in original TOS.
 
 AES
-- Implement AES v3.x functions (TOS v3 menu functions)
 
 DESK
 - Add a dialog for configuring the NVRAM (keyboard, languages, ...)

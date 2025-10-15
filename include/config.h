@@ -6,7 +6,7 @@
  * Defines that should *not* be overridden should appear in sysconf.h
  * (or deskconf.h if they apply to EmuDesk).
  *
- * Copyright (C) 2001-2021 The EmuTOS development team
+ * Copyright (C) 2001-2025 The EmuTOS development team
  *
  * Authors:
  *  MAD     Martin Doering
@@ -59,6 +59,9 @@
  * Defaults for the ARAnyM target
  */
 #ifdef MACHINE_ARANYM
+# ifndef CONF_WITH_VDI_16BIT
+#  define CONF_WITH_VDI_16BIT 1
+# endif
 # ifndef CONF_WITH_APOLLO_68080
 #  define CONF_WITH_APOLLO_68080 0
 # endif
@@ -122,8 +125,8 @@
  * Defaults for the FireBee target
  */
 #ifdef MACHINE_FIREBEE
-# ifndef SDCLK_FREQUENCY_MHZ
-#  define SDCLK_FREQUENCY_MHZ 132UL
+# ifndef CONF_WITH_ST_MMU
+#  define CONF_WITH_ST_MMU 0
 # endif
 # ifndef CONF_WITH_TT_MMU
 #  define CONF_WITH_TT_MMU 0
@@ -256,6 +259,9 @@
 # ifndef CONF_WITH_IDE
 #  define CONF_WITH_IDE 0
 # endif
+# ifndef CONF_WITH_SCSI_DRIVER
+#  define CONF_WITH_SCSI_DRIVER 0
+# endif
 # ifndef CONF_WITH_STE_SHIFTER
 #  define CONF_WITH_STE_SHIFTER 0
 # endif
@@ -352,6 +358,9 @@
 # ifndef CONF_WITH_EXTENDED_MOUSE
 #  define CONF_WITH_EXTENDED_MOUSE 0
 # endif
+# ifndef CONF_WITH_VDI_16BIT
+#  define CONF_WITH_VDI_16BIT 0
+# endif
 # ifndef CONF_WITH_VDI_VERTLINE
 #  define CONF_WITH_VDI_VERTLINE 0
 # endif
@@ -430,6 +439,9 @@
 # ifndef CONF_WITH_MENU_EXTENSION
 #  define CONF_WITH_MENU_EXTENSION 0
 # endif
+# ifndef CONF_WITH_VDI_16BIT
+#  define CONF_WITH_VDI_16BIT 0
+# endif
 # ifndef MAX_VERTICES
 #  define MAX_VERTICES 512
 # endif
@@ -476,6 +488,9 @@
 # ifndef CONF_WITH_SCSI
 #  define CONF_WITH_SCSI 0
 # endif
+# ifndef CONF_WITH_SCSI_DRIVER
+#  define CONF_WITH_SCSI_DRIVER 0
+# endif
 # ifndef CONF_WITH_TT_MFP
 #  define CONF_WITH_TT_MFP 0
 # endif
@@ -487,6 +502,9 @@
 # endif
 # ifndef CONF_WITH_EXTENDED_MOUSE
 #  define CONF_WITH_EXTENDED_MOUSE 0
+# endif
+# ifndef CONF_WITH_VDI_16BIT
+#  define CONF_WITH_VDI_16BIT 0
 # endif
 # ifndef CONF_WITH_VDI_TEXT_SPEEDUP
 #  define CONF_WITH_VDI_TEXT_SPEEDUP 0
@@ -603,6 +621,9 @@
 # ifndef CONF_WITH_CACHE_CONTROL
 #  define CONF_WITH_CACHE_CONTROL 0
 # endif
+# ifndef CONF_WITH_EJECT
+#  define CONF_WITH_EJECT 1
+# endif
 # ifndef USE_STOP_INSN_TO_FREE_HOST_CPU
    /* This makes LisaEm timings completely inaccurate, so disable it */
 #  define USE_STOP_INSN_TO_FREE_HOST_CPU 0
@@ -613,9 +634,6 @@
  * Defaults for the M548x machine
  */
 #ifdef MACHINE_M548X
-# ifndef SDCLK_FREQUENCY_MHZ
-#  define SDCLK_FREQUENCY_MHZ 100UL
-# endif
 # ifndef CONF_ATARI_HARDWARE
 #  define CONF_ATARI_HARDWARE 0
 # endif
@@ -630,6 +648,9 @@
 # endif
 # ifndef CONF_WITH_IDE
 #  define CONF_WITH_IDE 1
+# endif
+# ifndef CONF_WITH_SDMMC
+#  define CONF_WITH_SDMMC 1
 # endif
 # ifndef CONF_WITH_FLEXCAN
 #  define CONF_WITH_FLEXCAN 1
@@ -756,6 +777,9 @@
 # ifndef CONF_WITH_IDE
 #  define CONF_WITH_IDE 0
 # endif
+# ifndef CONF_WITH_SCSI_DRIVER
+#  define CONF_WITH_SCSI_DRIVER 0
+# endif
 # ifndef CONF_WITH_ATARI_VIDEO
 #  define CONF_WITH_ATARI_VIDEO 0
 # endif
@@ -812,6 +836,15 @@
 # endif
 # ifndef CONF_WITH_NOVA
 #  define CONF_WITH_NOVA 0
+# endif
+# ifndef CONF_WITH_ALT_DESKTOP_GRAPHICS
+#  define CONF_WITH_ALT_DESKTOP_GRAPHICS 0 /* Like ST, not Falcon */
+# endif
+# ifndef CONF_WITH_3D_OBJECTS
+#  define CONF_WITH_3D_OBJECTS 0 /* Like ST, not Falcon */
+# endif
+# ifndef CONF_WITH_VDI_16BIT
+#  define CONF_WITH_VDI_16BIT 0 /* Like ST, not Falcon */
 # endif
 #endif
 
@@ -1136,7 +1169,6 @@
 # define CONF_WITH_ULTRASATAN_CLOCK CONF_WITH_ACSI
 #endif
 
-
 /*
  * Set CONF_WITH_DMASOUND to 1 to enable support for STe/TT/Falcon DMA sound
  */
@@ -1351,7 +1383,7 @@
  *      0x0331      AES 3.31, used by TOS v4.01
  *      0x0340      AES 3.40, used by TOS v4.02 & v4.04
  * Do not change this arbitrarily, as each value implies the presence or
- * absence of certain AES functions ... 
+ * absence of certain AES functions ...
  */
 #ifndef AES_VERSION
 # if CONF_WITH_3D_OBJECTS && CONF_WITH_MENU_EXTENSION && CONF_WITH_WINDOW_COLOURS && CONF_WITH_GRAF_MOUSE_EXTENSION
@@ -1533,13 +1565,6 @@
 #endif
 
 /*
- * Set CONF_WITH_XHDI to 1 to enable XHDI support (i.e. the XHDI cookie etc.)
- */
-#ifndef CONF_WITH_XHDI
-# define CONF_WITH_XHDI 1
-#endif
-
-/*
  * Set the default baud rate for serial ports.
  */
 #ifndef DEFAULT_BAUDRATE
@@ -1563,6 +1588,27 @@
 # define HD_DETECT_RETRIES 0
 #endif
 
+/*
+ * Set CONF_WITH_1FAT_SUPPORT to 1 to enable support for filesystems with
+ * only one file allocation table (FAT) instead of the usual two FATs.
+ *
+ * This is disabled by default because all versions of Atari TOS assume
+ * two FATs. There are erroneously mastered disks that claim to have a
+ * single FAT, but in reality have two. For compatibility with Atari TOS
+ * EmuTOS has to assume two FATs by default.
+ *
+ */
+#ifndef CONF_WITH_1FAT_SUPPORT
+# define CONF_WITH_1FAT_SUPPORT 0
+#endif
+
+/*
+ * Set CONF_WITH_GPT_SUPPORT to 1 to enable support for hard disks
+ * with a GUID partition table (GPT).
+ */
+#ifndef CONF_WITH_GPT_SUPPORT
+# define CONF_WITH_GPT_SUPPORT 1
+#endif
 
 
 /********************************************************
@@ -1619,6 +1665,14 @@
 #endif
 
 /*
+ * Set CONF_WITH_VDI_16BIT to 1 to include VDI support for the Falcon's
+ * 16-bit graphics modes.
+ */
+#ifndef CONF_WITH_VDI_16BIT
+# define CONF_WITH_VDI_16BIT 1
+#endif
+
+/*
  * Set CONF_WITH_VDI_TEXT_SPEEDUP to 1 to improve some VDI text output
  * performance
  */
@@ -1648,6 +1702,28 @@
  */
 #ifndef NUM_VDI_HANDLES
 # define NUM_VDI_HANDLES 128    /* maximum number of open workstations */
+#endif
+
+
+
+/************************************************************************
+ *  S O F T W A R E   S E C T I O N   -   3 R D   P A R T Y   A P I     *
+ ************************************************************************/
+
+/*
+ * set CONF_WITH_SCSI_DRIVER to 1 to activate support for the SCSI driver
+ * API, which allows user programs to issue SCSI-style commands directly
+ * to devices.  see the documentation by Steffen Engel for more details.
+ */
+#ifndef CONF_WITH_SCSI_DRIVER
+# define CONF_WITH_SCSI_DRIVER 1
+#endif
+
+/*
+ * Set CONF_WITH_XHDI to 1 to enable XHDI support (i.e. the XHDI cookie etc.)
+ */
+#ifndef CONF_WITH_XHDI
+# define CONF_WITH_XHDI 1
 #endif
 
 
@@ -1955,8 +2031,25 @@
 # define MIDI_DEBUG_PRINT 0
 #endif
 
+/*
+ * Set CARTRIDGE_DEBUG_PRINT to 1 to redirect debug prints to the
+ * cartridge port. A character 'c' is encoded into address lines
+ * A8-A1 by performing a read access to the upper half of the cartridge
+ * address space 0xFB0xxx, which is decoded to the /ROM3 signal.
+ * This has the advantage of being always available since it does not
+ * require initialization of a peripheral.
+ * Output can be decoded by connecting a logic analyzer to A8-A1,
+ * triggering on /ROM3, or by using a special firmware for the
+ * SidecarTridge Multi-device hardware:
+ * https://github.com/czietz/atari-debug-cart
+ */
+#ifndef CARTRIDGE_DEBUG_PRINT
+# define CARTRIDGE_DEBUG_PRINT 0
+#endif
+
+
 /* Determine if kprintf() is available */
-#if CONF_WITH_UAE || DETECT_NATIVE_FEATURES || STONX_NATIVE_PRINT || CONSOLE_DEBUG_PRINT || RS232_DEBUG_PRINT || SCC_DEBUG_PRINT || COLDFIRE_DEBUG_PRINT || MIDI_DEBUG_PRINT
+#if CONF_WITH_UAE || DETECT_NATIVE_FEATURES || STONX_NATIVE_PRINT || CONSOLE_DEBUG_PRINT || RS232_DEBUG_PRINT || SCC_DEBUG_PRINT || COLDFIRE_DEBUG_PRINT || MIDI_DEBUG_PRINT || CARTRIDGE_DEBUG_PRINT
 #  define HAS_KPRINTF 1
 # else
 #  define HAS_KPRINTF 0
@@ -1972,6 +2065,14 @@
 # else
 #  define CONF_WITH_SHUTDOWN 0
 # endif
+#endif
+
+/*
+ * Set CONF_WITH_EJECT to 1 to enable automatic floppy eject.
+ * This isn't available on Atari hardware.
+ */
+#ifndef CONF_WITH_EJECT
+# define CONF_WITH_EJECT 0
 #endif
 
 /*
@@ -2128,6 +2229,12 @@
 # endif
 #endif
 
+#if !CONF_WITH_VIDEL
+# if CONF_WITH_VDI_16BIT
+#  error CONF_WITH_VDI_16BIT requires CONF_WITH_VIDEL
+# endif
+#endif
+
 /*
  * Sanity checks for debugging options
  */
@@ -2144,8 +2251,8 @@
 # endif
 #endif
 
-#if (CONSOLE_DEBUG_PRINT + RS232_DEBUG_PRINT + SCC_DEBUG_PRINT + COLDFIRE_DEBUG_PRINT + MIDI_DEBUG_PRINT) > 1
-# error Only one of CONSOLE_DEBUG_PRINT, RS232_DEBUG_PRINT, SCC_DEBUG_PRINT, COLDFIRE_DEBUG_PRINT or MIDI_DEBUG_PRINT must be set to 1.
+#if (CONSOLE_DEBUG_PRINT + RS232_DEBUG_PRINT + SCC_DEBUG_PRINT + COLDFIRE_DEBUG_PRINT + MIDI_DEBUG_PRINT + CARTRIDGE_DEBUG_PRINT) > 1
+# error Only one of CONSOLE_DEBUG_PRINT, RS232_DEBUG_PRINT, SCC_DEBUG_PRINT, COLDFIRE_DEBUG_PRINT, MIDI_DEBUG_PRINT or CARTRIDGE_DEBUG_PRINT must be set to 1.
 #endif
 
 

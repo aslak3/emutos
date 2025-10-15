@@ -1,7 +1,7 @@
 /*
  * coldfire.h - ColdFire specific functions
  *
- * Copyright (C) 2013-2021 The EmuTOS development team
+ * Copyright (C) 2013-2024 The EmuTOS development team
  *
  * Authors:
  *  VRI   Vincent Rivière
@@ -41,6 +41,7 @@ void firebee_shutdown(void);
 #endif /* MACHINE_FIREBEE */
 
 void coldfire_rs232_enable_interrupt(void);
+void coldfire_rs232_disable_interrupt(void);
 void coldfire_rs232_interrupt_handler(void);
 void coldfire_int_35(void); /* In coldfire2.S */
 
@@ -107,6 +108,9 @@ typedef struct {
 } MCF_COOKIE;
 
 extern MCF_COOKIE cookie_mcf;
+
+/* MCF_DSPI_DTFR value for SPI chip select. */
+extern ULONG cf_spi_chip_select;
 
 void setvalue_mcf(void);
 

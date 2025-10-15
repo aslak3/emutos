@@ -4,7 +4,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2021 The EmuTOS development team
+*                 2002-2022 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -311,7 +311,7 @@ char *sh_name(char *ppath)
      * within the path, so we handle a path like X:AAAAAAAA.BBB before
      * calling the general function
      */
-    if (extract_drive_number(pname))    /* valid prefix exists */
+    if (extract_drive_number(pname) >= 0)   /* valid prefix exists */
         pname += 2;
 
     return filename_start(pname);

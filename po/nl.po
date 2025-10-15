@@ -11,6 +11,18 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 #: bios/bios.c
+msgid "Memory test"
+msgstr "Geheugen test"
+
+#: bios/bios.c
+msgid "complete"
+msgstr "klaar"
+
+#: bios/bios.c
+msgid "aborted"
+msgstr "afgebroken"
+
+#: bios/bios.c
 msgid ""
 "System halted!\n"
 msgstr ""
@@ -82,10 +94,6 @@ msgstr ""
 "Gebruik FOLDR100.PRG om meer vrij te maken.\n"
 "Systeem gestopt!\n"
 
-#: aes/gem_rsc.c desk/desk_rsc.c
-msgid "Drive:"
-msgstr "Drive:"
-
 #: aes/gem_rsc.c
 msgid "Selection: ________.___"
 msgstr "Selectie: ________.___"
@@ -93,6 +101,10 @@ msgstr "Selectie: ________.___"
 #: aes/gem_rsc.c
 msgid "Directory:"
 msgstr "Directory:"
+
+#: aes/gem_rsc.c desk/desk_rsc.c
+msgid "Drive:"
+msgstr "Drive:"
 
 #: aes/gem_rsc.c desk/desk_rsc.c
 msgid "OK"
@@ -264,12 +276,16 @@ msgid "ITEM SELECTOR"
 msgstr "ITEM SELECTOR"
 
 #: desk/desk_rsc.c
-msgid "Number of folders: _____"
-msgstr "Aantal mappen: _____"
+msgid "Name: ________.___"
+msgstr "Naam: ________.___"
 
 #: desk/desk_rsc.c
-msgid "Number of files: _____"
-msgstr "Aantal bestanden: _____"
+msgid "Number of folders:         _____"
+msgstr "Aantal mappen:         _____"
+
+#: desk/desk_rsc.c
+msgid "Number of files:         _____"
+msgstr "Aantal bestanden:         _____"
 
 #: desk/desk_rsc.c
 msgid "Skip"
@@ -292,36 +308,32 @@ msgid "No"
 msgstr "Nee"
 
 #: desk/desk_rsc.c
-msgid "Name: ________.___"
-msgstr "Naam: ________.___"
+msgid "Size:   __________"
+msgstr "Grootte:   __________"
 
 #: desk/desk_rsc.c
-msgid "Size: __________"
-msgstr "Grootte: __________"
+msgid "Date:   __________"
+msgstr "Datum:   __________"
 
 #: desk/desk_rsc.c
-msgid "Date: __________"
-msgstr "Datum: __________"
+msgid "Time:   __:__ __  "
+msgstr "Tijd:   __:__ __  "
 
 #: desk/desk_rsc.c
-msgid "Time: __:__ __"
-msgstr "Tijd: __:__ __"
+msgid "Drive identifier:  _           "
+msgstr "Drive letter:  _           "
 
 #: desk/desk_rsc.c
-msgid "Drive identifier:     _"
-msgstr "Drive letter:     _"
+msgid "Disk label:  ________.___"
+msgstr "Disk naam:  ________.___"
 
 #: desk/desk_rsc.c
-msgid "Disk label: ________.___"
-msgstr "Disk naam: ________.___"
+msgid "Bytes used:    __________"
+msgstr "Bytes gebruikt:    __________"
 
 #: desk/desk_rsc.c
-msgid "Bytes used: __________"
-msgstr "Bytes gebruikt: __________"
-
-#: desk/desk_rsc.c
-msgid "Bytes available: __________"
-msgstr "Bytes beschikbaar: __________"
+msgid "Bytes available:    __________"
+msgstr "Bytes beschikbaar:    __________"
 
 #: desk/desk_rsc.c
 msgid "Identifier: _:"
@@ -430,6 +442,10 @@ msgstr "  Verwijderen..."
 #: desk/desk_rsc.c
 msgid "  Format floppy..."
 msgstr "  Format floppy..."
+
+#: desk/desk_rsc.c
+msgid "  Eject floppy"
+msgstr "  Floppy verwijderen"
 
 #: desk/desk_rsc.c
 msgid "  Execute EmuCON"
@@ -720,14 +736,6 @@ msgid "DESKTOP CONFIGURATION"
 msgstr "DESKTOP CONFIGURATIE"
 
 #: desk/desk_rsc.c
-msgid "Default directory:"
-msgstr "Standaard directory:"
-
-#: desk/desk_rsc.c
-msgid "Input parameter:"
-msgstr "Invoer parameter:"
-
-#: desk/desk_rsc.c
 msgid "Function keys:"
 msgstr "Functie toetsen:"
 
@@ -800,16 +808,20 @@ msgid "FORMAT FLOPPY DISKETTE"
 msgstr "FORMATTEER FLOPPY DISKETTE"
 
 #: desk/desk_rsc.c
-msgid "Single sided"
-msgstr "Enkel zijdig"
+msgid "SS 360 K"
+msgstr "SS 360 K"
 
 #: desk/desk_rsc.c
-msgid "Double sided"
-msgstr "Dubbel zijdig"
+msgid "DS 720 K"
+msgstr "DS 720 K"
 
 #: desk/desk_rsc.c
-msgid "High density"
-msgstr "Hoge dichtheid"
+msgid "DS 800 K"
+msgstr "DS 800 K"
+
+#: desk/desk_rsc.c
+msgid "HD 1.44 M"
+msgstr "HD 1.44 M"
 
 #: desk/desk_rsc.c
 msgid "SET BACKGROUND"
@@ -1658,16 +1670,4 @@ msgstr "verkeerd aantal argumenten"
 #: cli/cmdutil.c
 msgid "error code %ld"
 msgstr "fout code %ld"
-
-#: bios/bios.c
-msgid "Memory test"
-msgstr "Geheugen test"
-
-#: bios/bios.c
-msgid "complete"
-msgstr "klaar"
-
-#: bios/bios.c
-msgid "aborted"
-msgstr "afgebroken"
 

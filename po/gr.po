@@ -25,6 +25,18 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 #: bios/bios.c
+msgid "Memory test"
+msgstr " â¢œš®¦ª £¤ã£ª"
+
+#: bios/bios.c
+msgid "complete"
+msgstr "¦¢¦¡¢¨éŸ¡œ"
+
+#: bios/bios.c
+msgid "aborted"
+msgstr "˜¡¬¨éŸ¡œ"
+
+#: bios/bios.c
 msgid ""
 "System halted!\n"
 msgstr ""
@@ -96,10 +108,6 @@ msgstr ""
 "•¨© £¦§¦ ã©«œ «¦ FOLDR100.PRG š ˜ §œ¨ ©©æ«œ¨.\n"
 "ƒ ˜¡¦§ã ©¬©«ã£˜«¦ª\n"
 
-#: aes/gem_rsc.c desk/desk_rsc.c
-msgid "Drive:"
-msgstr "ƒå©¡¦ª:"
-
 #: aes/gem_rsc.c
 msgid "Selection: ________.___"
 msgstr "„§ ¢¦šã: ________.___"
@@ -107,6 +115,10 @@ msgstr "„§ ¢¦šã: ________.___"
 #: aes/gem_rsc.c
 msgid "Directory:"
 msgstr "‰˜«á¢¦š¦ª:"
+
+#: aes/gem_rsc.c desk/desk_rsc.c
+msgid "Drive:"
+msgstr "ƒå©¡¦ª:"
 
 #: aes/gem_rsc.c desk/desk_rsc.c
 msgid "OK"
@@ -276,12 +288,16 @@ msgid "ITEM SELECTOR"
 msgstr "„ˆŠ‚„€‘ €•„ˆ—Œ"
 
 #: desk/desk_rsc.c
-msgid "Number of folders: _____"
-msgstr "€¨ Ÿ£æª ­˜¡â¢à¤: _____"
+msgid "Name: ________.___"
+msgstr "î¤¦£˜: ________.___"
 
 #: desk/desk_rsc.c
-msgid "Number of files: _____"
-msgstr "€¨ Ÿ£æª ˜¨®œåà¤: _____"
+msgid "Number of folders:         _____"
+msgstr "€¨ Ÿ£æª ­˜¡â¢à¤:         _____"
+
+#: desk/desk_rsc.c
+msgid "Number of files:         _____"
+msgstr "€¨ Ÿ£æª ˜¨®œåà¤:         _____"
 
 #: desk/desk_rsc.c
 msgid "Skip"
@@ -304,36 +320,32 @@ msgid "No"
 msgstr "î® "
 
 #: desk/desk_rsc.c
-msgid "Name: ________.___"
-msgstr "î¤¦£˜: ________.___"
+msgid "Size:   __________"
+msgstr "‹âšœŸ¦ª:   __________"
 
 #: desk/desk_rsc.c
-msgid "Size: __________"
-msgstr "‹âšœŸ¦ª: __________"
+msgid "Date:   __________"
+msgstr "†£/¤å˜:   __________"
 
 #: desk/desk_rsc.c
-msgid "Date: __________"
-msgstr "†£/¤å˜: __________"
+msgid "Time:   __:__ __  "
+msgstr "ğ¨˜:   __:__ __  "
 
 #: desk/desk_rsc.c
-msgid "Time: __:__ __"
-msgstr "ğ¨˜: __:__ __"
+msgid "Drive identifier:  _           "
+msgstr "’˜¬«æ««˜ ›å©¡¦¬:  _           "
 
 #: desk/desk_rsc.c
-msgid "Drive identifier:     _"
-msgstr "’˜¬«æ««˜ ›å©¡¦¬:     _"
+msgid "Disk label:  ________.___"
+msgstr "„« ¡â«˜ ›å©¡¦¬:  ________.___"
 
 #: desk/desk_rsc.c
-msgid "Disk label: ________.___"
-msgstr "„« ¡â«˜ ›å©¡¦¬: ________.___"
+msgid "Bytes used:    __________"
+msgstr "Bytes ©œ ®¨ã©:    __________"
 
 #: desk/desk_rsc.c
-msgid "Bytes used: __________"
-msgstr "Bytes ©œ ®¨ã©: __________"
-
-#: desk/desk_rsc.c
-msgid "Bytes available: __________"
-msgstr "ƒ ˜Ÿâ© £˜ bytes: __________"
+msgid "Bytes available:    __________"
+msgstr "ƒ ˜Ÿâ© £˜ bytes:    __________"
 
 #: desk/desk_rsc.c
 msgid "Identifier: _:"
@@ -442,6 +454,10 @@ msgstr "  ƒ ˜š¨˜­ã..."
 #: desk/desk_rsc.c
 msgid "  Format floppy..."
 msgstr "  ƒ ˜£æ¨­à© › ©¡â«˜ª.."
+
+#: desk/desk_rsc.c
+msgid "  Eject floppy"
+msgstr "  „¥˜šàšã › ©¡â«˜ª"
 
 #: desk/desk_rsc.c
 msgid "  Execute EmuCON"
@@ -681,15 +697,15 @@ msgstr "’ˆ‹†‘„ˆ‘"
 
 #: desk/desk_rsc.c
 msgid "Confirm deletes:"
-msgstr "„§ ™œ™˜åà© › ˜š¨˜­é¤"
+msgstr "„§ ™œ™˜åà© › ˜š¨˜­é¤:"
 
 #: desk/desk_rsc.c
 msgid "Confirm copies:"
-msgstr "„§ ™œ™˜åà© ˜¤« š¨˜­é¤"
+msgstr "„§ ™œ™˜åà© ˜¤« š¨˜­é¤:"
 
 #: desk/desk_rsc.c
 msgid "Confirm overwrites:"
-msgstr "„§ ™œ™˜åà© "
+msgstr "„§ ™œ™˜åà© ˜¤« ¡˜«á©«˜©:"
 
 #: desk/desk_rsc.c
 msgid "Double-click speed:"
@@ -730,14 +746,6 @@ msgstr "ˆ‘‹‘ ‹€‘‰€‘ €•„ˆ“"
 #: desk/desk_rsc.c
 msgid "DESKTOP CONFIGURATION"
 msgstr "ƒˆ€‹”—‘† DESKTOP"
-
-#: desk/desk_rsc.c
-msgid "Default directory:"
-msgstr "¨¦œ§ ¢œš£â¤¦ª ¡˜«á¢¦š¦ª:"
-
-#: desk/desk_rsc.c
-msgid "Input parameter:"
-msgstr "˜¨á£œ«¨¦  œ ©æ›¦¬"
 
 #: desk/desk_rsc.c
 msgid "Function keys:"
@@ -812,16 +820,20 @@ msgid "FORMAT FLOPPY DISKETTE"
 msgstr "ƒˆ€‹”—‘† ƒˆ‘‰„’€‘"
 
 #: desk/desk_rsc.c
-msgid "Single sided"
-msgstr "‹¦¤ã §¢œ¬¨á"
+msgid "SS 360 K"
+msgstr "SS 360 KB"
 
 #: desk/desk_rsc.c
-msgid "Double sided"
-msgstr "ƒ §¢ã §¢œ¬¨á"
+msgid "DS 720 K"
+msgstr "DS 720 KB"
 
 #: desk/desk_rsc.c
-msgid "High density"
-msgstr "“¯¢ã §¬¡¤æ««˜"
+msgid "DS 800 K"
+msgstr "DS 800 KB"
+
+#: desk/desk_rsc.c
+msgid "HD 1.44 M"
+msgstr "HD 1.44 MB"
 
 #: desk/desk_rsc.c
 msgid "SET BACKGROUND"
@@ -1679,16 +1691,4 @@ msgstr "wrong number of arguments"
 #: cli/cmdutil.c
 msgid "error code %ld"
 msgstr "error code %ld"
-
-#: bios/bios.c
-msgid "Memory test"
-msgstr " â¢œš®¦ª £¤ã£ª"
-
-#: bios/bios.c
-msgid "complete"
-msgstr "¦¢¦¡¢¨éŸ¡œ"
-
-#: bios/bios.c
-msgid "aborted"
-msgstr "˜¡¬¨éŸ¡œ"
 

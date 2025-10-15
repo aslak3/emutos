@@ -1,9 +1,13 @@
+/*
+ *      deskmain.c - high-level EmuTOS desktop functions
+ */
+
 /*      DESKTOP.C       05/04/84 - 09/05/85     Lee Lorenzen            */
 /*      for 3.0         3/12/86  - 1/29/87      MDF                     */
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2021 The EmuTOS development team
+*                 2002-2024 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -26,6 +30,7 @@
 #include "aesdefs.h"
 #include "biosext.h"
 #include "obdefs.h"
+#include "rectfunc.h"
 #include "gemdos.h"
 #include "optimize.h"
 #include "gsxdefs.h"
@@ -736,6 +741,12 @@ static WORD do_filemenu(WORD item)
         break;
 #endif
 
+#if CONF_WITH_EJECT
+    case EJCTITEM:
+        flop_eject();
+        break;
+#endif
+
 #if WITH_CLI
     case CLIITEM:                         /* Start EmuCON */
         G.g_work[1] = '\0';
@@ -1240,6 +1251,7 @@ WORD hndl_msg(void)
     WORD            change, menu;
     GRECT           gr;
     WORD            cols, shrunk;
+    WORD            handle;
 
     done = change = menu = shrunk = FALSE;
 
@@ -1249,25 +1261,27 @@ WORD hndl_msg(void)
         return done;
     }
 
+    handle = G.g_rmsg[3];
+
     switch(G.g_rmsg[0])
     {
     case MN_SELECTED:
         desk_verify(G.g_wlastsel, FALSE);
-        done = hndl_menu(G.g_rmsg[3], G.g_rmsg[4]);
+        done = hndl_menu(handle, G.g_rmsg[4]);
         break;
     case WM_REDRAW:
         menu = TRUE;
-        if (G.g_rmsg[3])
+        if (handle)
         {
-            do_wredraw(G.g_rmsg[3], (GRECT *)&G.g_rmsg[4]);
+            do_wredraw(handle, (GRECT *)&G.g_rmsg[4]);
         }
         break;
     case WM_TOPPED:
         desk_clear(G.g_cwin);
-        pw = win_find(G.g_rmsg[3]);
+        pw = win_find(handle);
         if (pw)
         {
-            wind_set(G.g_rmsg[3], WF_TOP, 0, 0, 0, 0);
+            wind_set(handle, WF_TOP, 0, 0, 0, 0);
             win_top(pw);
             desk_verify(pw->w_id, FALSE);
             change = TRUE;
@@ -1277,49 +1291,46 @@ WORD hndl_msg(void)
         do_filemenu(CLOSITEM);
         break;
     case WM_FULLED:
-        pw = win_find(G.g_rmsg[3]);
+        pw = win_find(handle);
         if (pw)
         {
             win_top(pw);
-            do_wfull(G.g_rmsg[3]);
-            desk_verify(G.g_rmsg[3], TRUE);   /* build window, update w_pncol */
+            do_wfull(handle);
+            desk_verify(handle, TRUE);      /* build window, update w_pncol */
             change = TRUE;
         }
         break;
     case WM_ARROWED:
-        win_arrow(G.g_rmsg[3], G.g_rmsg[4]);
+        win_arrow(handle, G.g_rmsg[4]);
         break;
 #if CONF_WITH_SIZE_TO_FIT
     case WM_HSLID:
-        win_slide(G.g_rmsg[3], TRUE, G.g_rmsg[4]);
+        win_slide(handle, TRUE, G.g_rmsg[4]);
         break;
 #endif
     case WM_VSLID:
-        win_slide(G.g_rmsg[3], FALSE, G.g_rmsg[4]);
+        win_slide(handle, FALSE, G.g_rmsg[4]);
         break;
     case WM_MOVED:
     case WM_SIZED:
-        pw = win_find(G.g_rmsg[3]);
+        pw = win_find(handle);
         if (!pw)
             break;
-        gr.g_x = G.g_rmsg[4];
-        gr.g_y = G.g_rmsg[5];
-        gr.g_w = G.g_rmsg[6];
-        gr.g_h = G.g_rmsg[7];
+        rc_copy((GRECT *)&G.g_rmsg[4], &gr);
         do_xyfix(&gr.g_x, &gr.g_y);
-        wind_set_grect(G.g_rmsg[3], WF_CXYWH, &gr);
+        wind_set_grect(handle, WF_CXYWH, &gr);
         if (G.g_rmsg[0] == WM_SIZED)
         {
             cols = pw->w_pncol;
-            wind_get_grect(G.g_rmsg[3], WF_PXYWH, &gr);
+            wind_get_grect(handle, WF_PXYWH, &gr);
             if ((G.g_rmsg[6] <= gr.g_w) && (G.g_rmsg[7] <= gr.g_h))
                 shrunk = TRUE;
-            desk_verify(G.g_rmsg[3], TRUE);   /* build window, update w_pncol */
+            desk_verify(handle, TRUE);      /* build window, update w_pncol */
         }
         else    /* WM_MOVED */
         {
-            wind_get_grect(G.g_rmsg[3],WF_WXYWH, &gr);
-            r_set((GRECT *)(&G.g_screen[pw->w_root].ob_x), gr.g_x, gr.g_y, gr.g_w, gr.g_h);
+            wind_get_grect(handle, WF_WXYWH, &gr);
+            rc_copy(&gr, (GRECT *)(&G.g_screen[pw->w_root].ob_x));
         }
         change = TRUE;
         break;
@@ -1331,8 +1342,8 @@ WORD hndl_msg(void)
      */
     if (shrunk && (pw->w_pncol != cols))
     {
-        wind_get_grect(G.g_rmsg[3], WF_WXYWH, &gr);
-        fun_msg(WM_REDRAW, G.g_rmsg[3], gr.g_x, gr.g_y, gr.g_w, gr.g_h);
+        wind_get_grect(handle, WF_WXYWH, &gr);
+        fun_msg(WM_REDRAW, handle, gr.g_x, gr.g_y, gr.g_w, gr.g_h);
     }
 
     if (change)
@@ -1637,10 +1648,8 @@ static void adjust_3d_positions(void)
     /*
      * adjust Desktop configuration dialog
      */
-    tree[DCFUNPRV].ob_y -= 2 * ADJ3DSTD;    /* avoid button overlap */
-    tree[DCFUNNXT].ob_y += ADJ3DSTD;
-    tree[DCMNUPRV].ob_y -= 2 * ADJ3DSTD;
-    tree[DCMNUNXT].ob_y += ADJ3DSTD;
+    tree[DCFUNPRV].ob_x -= 3 * ADJ3DSTD;    /* avoid button overlap */
+    tree[DCMNUPRV].ob_x -= 3 * ADJ3DSTD;
 }
 #endif
 
@@ -2146,6 +2155,9 @@ BOOL deskmain(void)
 
     /* turn off the menu bar */
     menu_bar(NULL, 0);
+
+    /* give up the desktop */
+    wind_set(DESKWH, WF_NEWDESK, NULL, 0, 0);
 
     /* exit the gem AES */
     appl_exit();

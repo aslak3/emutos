@@ -3,7 +3,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2021 The EmuTOS development team
+*                 2002-2024 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -95,6 +95,13 @@ WORD ap_rdwr(WORD code, AESPD *p, WORD length, WORD *pbuff)
 WORD ap_find(char *pname)
 {
     AESPD  *p;
+
+    /*
+     * explicitly disallow a NULL filename pointer, since this has
+     * a special meaning for fpdnm()
+     */
+    if (!pname)
+        return -1;
 
     p = fpdnm(pname, 0);
     return p ? p->p_pid : -1;

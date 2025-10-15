@@ -1,7 +1,7 @@
 /*
  * screen.c - low-level screen routines
  *
- * Copyright (C) 2001-2021 The EmuTOS development team
+ * Copyright (C) 2001-2025 The EmuTOS development team
  *
  * Authors:
  *  MAD   Martin Doering
@@ -40,10 +40,11 @@
 
 void detect_monitor_change(void);
 static void setphys(const UBYTE *addr);
+static ULONG calc_vram_size(void);
 
 #if CONF_WITH_VIDEL
 LONG video_ram_size;        /* these are used by Srealloc() */
-void *video_ram_addr; 
+void *video_ram_addr;
 #endif
 
 #if CONF_WITH_ATARI_VIDEO
@@ -534,7 +535,10 @@ void screen_init_mode(void)
         }
 #endif /* CONF_WITH_NVRAM */
 
-        if (!lookup_videl_mode(boot_resolution,monitor_type)) { /* mode isn't in table */
+        /* try to ensure it corresponds to monitor */
+        current_video_mode = boot_resolution;       /* needed by vfixmode() */
+        boot_resolution = vfixmode(boot_resolution);
+        if (!lookup_videl_mode(boot_resolution)) {  /* mode isn't in table */
             KDEBUG(("Invalid video mode 0x%04x changed to 0x%04x\n",
                     boot_resolution,FALCON_DEFAULT_BOOT));
             boot_resolution = FALCON_DEFAULT_BOOT;  /* so pick one that is */
@@ -546,14 +550,12 @@ void screen_init_mode(void)
             boot_resolution = FALCON_DEFAULT_BOOT;  /* so use default */
         }
 
-        /* initialise the current video mode, for vfixmode()/vsetmode() */
-        current_video_mode = boot_resolution;
-
-        /* fix the video mode according to the actual monitor */
-        boot_resolution = vfixmode(boot_resolution);
-        KDEBUG(("Fixed boot video mode is 0x%04x\n", boot_resolution));
+        /* vsetmode() now uses vfixmode() to adjust the video mode
+         * according to the actual monitor
+         */
         vsetmode(boot_resolution);  /* sets 'sshiftmod' */
         rez = sshiftmod;
+        KDEBUG(("Fixed boot video mode is 0x%04x\n",vsetmode(-1)));
     }
     else
 #endif /* CONF_WITH_VIDEL */
@@ -742,7 +744,7 @@ static const struct video_mode vmode_table[] = {
  * because some programs (e.g. NVDI) rely on this and write past what
  * should be the end of screen memory.
  */
-ULONG calc_vram_size(void)
+static ULONG calc_vram_size(void)
 {
 #ifdef MACHINE_AMIGA
     return amiga_initial_vram_size();
@@ -751,8 +753,21 @@ ULONG calc_vram_size(void)
 #else
     ULONG vram_size;
 
-    if (HAS_VIDEL)
-        return FALCON_VRAM_SIZE + EXTRA_VRAM_SIZE;
+#if CONF_WITH_VIDEL
+    if (has_videl)
+    {
+        /* mode is already set */
+        vram_size = vgetsize(vsetmode(-1));
+        KDEBUG(("calc_vram_size: minimum required size %ld bytes\n", vram_size));
+        /*
+         * for compatibility with previous EmuTOS versions allocate at least
+         * FALCON_VRAM_SIZE+EXTRA_VRAM_SIZE
+         */
+        if (vram_size < FALCON_VRAM_SIZE)
+            vram_size = FALCON_VRAM_SIZE;
+        return vram_size + EXTRA_VRAM_SIZE;
+    }
+#endif
 
     vram_size = (ULONG)BYTES_LIN * V_REZ_VT;
 
@@ -1123,7 +1138,7 @@ WORD setscreen(UBYTE *logLoc, const UBYTE *physLoc, WORD rez, WORD videlmode)
                     UBYTE *addr = (UBYTE *)Srealloc(vgetsize(videlmode));
                     if (!addr)      /* Srealloc() failed */
                         return -1;
-                    KDEBUG(("screen realloc'd to %d\n", addr));
+                    KDEBUG(("screen realloc'd to %p\n", addr));
                     v_bas_ad = addr;
                     setphys(addr);
                 }
@@ -1142,9 +1157,13 @@ WORD setscreen(UBYTE *logLoc, const UBYTE *physLoc, WORD rez, WORD videlmode)
     atari_setrez(rez, videlmode);
 #endif
 
+    /* Temporarily halt VBL processing */
+    vblsem = 0;
     /* Re-initialize line-a, VT52 etc: */
     linea_init();
     vt52_init();
+    /* Restart VBL processing */
+    vblsem = 1;
 
     return oldmode;
 }

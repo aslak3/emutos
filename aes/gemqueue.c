@@ -3,7 +3,7 @@
 
 /*
 *       Copyright 1999, Caldera Thin Clients, Inc.
-*                 2002-2019 The EmuTOS development team
+*                 2002-2024 The EmuTOS development team
 *
 *       This software is licenced under the GNU Public License.
 *       Please see LICENSE.TXT for further information.
@@ -104,7 +104,7 @@ void aqueue(WORD isqwrite, EVB *e, LONG lm)
     if (qready)
     {
         doq(isqwrite, p, m);
-        azombie(e, 0);
+        azombie(e, 1);          /* ap_rdwr() will return 1 => OK */ 
         if ((e = *ppe) != 0)    /* assignment ok */
         {
             e->e_flag |= NOCANCEL;
@@ -114,7 +114,7 @@ void aqueue(WORD isqwrite, EVB *e, LONG lm)
                 e->e_link->e_pred = e->e_pred;
 
             doq(!isqwrite, p, (QPB *)e->e_parm);
-            azombie(e, 0);
+            azombie(e, 1);
         }
     }
     else            /* "block" the event */
