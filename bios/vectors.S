@@ -573,7 +573,11 @@ timerc_end:
         // exception stack frame pointing to a pseudo-VBL routine. In that case,
         // the RTE below jumps to that pseudo-VBL. Then that one will return to
         // our caller with RTE.
-        rte
+#ifdef MACHINE_MAXI030
+	rts
+#else
+	rte
+#endif
 
 #if CONF_WITH_MFP_RS232
 

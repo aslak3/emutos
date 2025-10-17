@@ -17,6 +17,11 @@
 #include "asmdefs.h"
 #include "memory.h"
 
+#ifdef MACHINE_MAXI030
+#error
+#define EMUTOS_LIVES_IN_RAM 0
+#endif
+
 // ==== Definitions ==========================================================
 
         .globl  meminit                 // memory initialization

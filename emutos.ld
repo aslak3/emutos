@@ -22,7 +22,9 @@ OUTPUT_FORMAT(binary)
 /* The ROM address depends on the target */
 #if defined(MACHINE_AMIGA)
 # define ROM_ORIGIN 0x00fc0000
-#elif defined(TARGET_CART)
+#elif defined (MACHINE_MAXI030)
+# define ROM_ORIGIN 0xff002000
+#elif defined (TARGET_CART)
 # define ROM_ORIGIN 0x00fa0000
 #elif defined(TARGET_192)
 # define ROM_ORIGIN 0x00fc0000
@@ -43,7 +45,7 @@ OUTPUT_FORMAT(binary)
  */
 MEMORY
 {
-    stram : ORIGIN = 0x00000000, LENGTH = 14M
+    stram : ORIGIN = 0x00000000, LENGTH = 32M
 #if !EMUTOS_LIVES_IN_RAM
     rom : ORIGIN = ROM_ORIGIN, LENGTH = ROM_LENGTH
 #endif

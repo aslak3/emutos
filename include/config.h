@@ -577,6 +577,13 @@
 #endif
 
 /*
+ * Defaults for maxi030 targets
+ */
+#ifdef TARGET_MAXI030_IMG
+# define MACHINE_MAXI030
+#endif
+
+/*
  * Defaults for the Amiga machine
  */
 #ifdef MACHINE_AMIGA
@@ -656,6 +663,42 @@
 # endif
 # ifndef AES_STACK_SIZE
 #  define AES_STACK_SIZE 2048   /* in LONGs */
+# endif
+#endif
+
+/*
+ * Defaults for the MAXI030 machine
+ */
+#ifdef MACHINE_MAXI030
+# ifndef CONF_ATARI_HARDWARE
+#  define CONF_ATARI_HARDWARE 0
+# endif
+# ifndef CONF_STRAM_SIZE
+#  define CONF_STRAM_SIZE 32*1024*1024
+# endif
+# ifndef CONF_WITH_IDE
+#  define CONF_WITH_IDE 1
+# endif
+# ifndef CONF_WITH_FLEXCAN
+#  define CONF_WITH_FLEXCAN 0
+# endif
+# ifndef CONF_DETECT_FIRST_BOOT_WITHOUT_MEMCONF
+#  define CONF_DETECT_FIRST_BOOT_WITHOUT_MEMCONF 0
+# endif
+# ifndef ALWAYS_SHOW_INITINFO
+#  define ALWAYS_SHOW_INITINFO 1
+# endif
+# ifndef AES_STACK_SIZE
+#  define AES_STACK_SIZE 2048   /* in LONGs */
+# endif
+# ifndef CONF_WITH_BUS_ERROR
+#  define CONF_WITH_BUS_ERROR 1
+# endif
+# ifdef CONF_SERIAL_CONSOLE
+#  define CONF_SERIAL_CONSOLE 0
+# endif
+# ifndef CONF_VRAM_ADDRESS
+#  define CONF_VRAM_ADDRESS 0x90000000
 # endif
 #endif
 

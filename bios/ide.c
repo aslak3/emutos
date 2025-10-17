@@ -131,7 +131,7 @@ struct IDE
 #endif /* MACHINE_M548X */
 
 /* the data register is naturally byteswapped on some hardware */
-#if defined(MACHINE_AMIGA)
+#if defined(MACHINE_AMIGA) || defined MACHINE_MAXI030
 #define IDE_DATA_REGISTER_IS_BYTESWAPPED TRUE
 #else
 #define IDE_DATA_REGISTER_IS_BYTESWAPPED FALSE
@@ -155,6 +155,38 @@ struct IDE
 #define ide_get_and_incr(src,dst) asm volatile("move.w (%1),(%0)+" : "=a"(dst): "a"(src), "0"(dst));
 #define ide_put_and_incr(src,dst) asm volatile("move.w (%0)+,(%1)" : "=a"(src): "a"(dst), "0"(src));
 #endif
+
+#ifdef MACHINE_MAXI030
+
+#define NUM_IDE_INTERFACES 1
+
+struct IDE
+{
+    UWORD data;
+    UBYTE filler02[2];
+    UBYTE filler04;
+    UBYTE features; /* Read: error */
+    UBYTE filler06[3];
+    UBYTE sector_count;
+    UBYTE filler0a[3];
+    UBYTE sector_number;
+    UBYTE filler0e[3];
+    UBYTE cylinder_low;
+    UBYTE filler12[3];
+    UBYTE cylinder_high;
+    UBYTE filler16[3];
+    UBYTE head;
+    UBYTE filler1a[3];
+    UBYTE command;  /* Read: status */
+    UBYTE filler1e[27];
+    UBYTE control;  /* Read: Alternate status */
+    UBYTE filler3a[6];
+};
+
+#define ide_interface           ((volatile struct IDE *)0x44020000)
+
+#endif
+
 
 #if CONF_ATARI_HARDWARE
 
@@ -398,7 +430,7 @@ static void set_packet_size(WORD dev,UWORD config);
  * we do not check for the FireBee, since there are always exactly
  * two interfaces, or for non-Atari hardware.
  */
-#if CONF_ATARI_HARDWARE && !defined(MACHINE_FIREBEE)
+#if CONF_ATARI_HARDWARE && !defined(MACHINE_FIREBEE) || defined MACHINE_MAXI030
 
 /* used by duplicate interface detection logic */
 #define SECNUM_MAGIC    0xcc
@@ -566,7 +598,7 @@ BOOL detect_ide(void)
     has_ide = 0x01;
 #elif defined(MACHINE_FIREBEE)
     has_ide = 0x03;
-#elif CONF_ATARI_HARDWARE
+#elif CONF_ATARI_HARDWARE || defined MACHINE_MAXI030
 
     /*
      * see if the IDE registers for possible interfaces are accessible.
@@ -612,7 +644,7 @@ void ide_init(void)
     if (!has_ide)
         return;
 
-#if CONF_ATARI_HARDWARE && !defined(MACHINE_FIREBEE)
+#if (CONF_ATARI_HARDWARE && !defined(MACHINE_FIREBEE)) || defined MACHINE_MAXI030
     /* Reject 'ghost' interfaces & detect twisted cables.
      * We wait a max time for BSY to drop on all IDE interface
      * since this is called during initialisation, which can be

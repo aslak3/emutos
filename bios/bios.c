@@ -65,7 +65,9 @@
 #if WITH_CLI
 #include "../cli/clistub.h"
 #endif
-
+#ifdef MACHINE_MAXI030
+#include "maxi030.h"
+#endif
 
 
 /*==== Defines ============================================================*/
@@ -381,6 +383,11 @@ static void bios_init(void)
      */
     KDEBUG(("init_system_timer()\n"));
     init_system_timer();
+
+#if defined(MACHINE_MAXI030)
+    maxi030_init();
+    KDEBUG(("maxi030_init()\n"));
+#endif
 
     /*
      * Now we can enable interrupts.  Although VBL & timer interrupts will
@@ -805,6 +812,8 @@ void biosmain(void)
         bootdev = initinfo(&shiftbits); /* show the welcome screen */
     else
         shiftbits = kbshift(-1);
+        
+    cprintf("done initinfo ");
 
     KDEBUG(("bootdev = %d\n", bootdev));
 
