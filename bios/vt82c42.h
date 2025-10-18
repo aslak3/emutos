@@ -41,7 +41,7 @@
 #define KBD_CMD_DEFAULT		    0xF6	// Reverts keyboard to default settings
 #define KBD_CMD_RESET		    0xFF	// Reset - we should get 0xFA, 0xAA back
 
-#define MOUSE_CMD_RESOLUTION    0xE9    // Resolution (counts/mm) 0=1, 1 = 2, 2 = 4, 3 = 8
+#define MOUSE_CMD_RESOLUTION    0xE8    // Resolution (counts/mm) 0=1, 1 = 2, 2 = 4, 3 = 8
 #define MOUSE_CMD_STATUS        0xE9    // Status Request
 #define MOUSE_CMD_STREAM        0xEA 	// Set Stream Mode
 #define MOUSE_CMD_READ          0xEB 	// Read Data

@@ -1,9 +1,8 @@
 #include "config.h"
 #include <stdint.h>
 
-// Keyboard initialisation improved to stop spurios charater interrupts occuringh
+// Keyboard initialisation improved to stop spurious charater interrupts occuringh
 // Based on Tom Storey's code https://github.com/tomstorey/emutos/blob/comet68k/bios/comet_vga.c
-
 
 #define ENABLE_KDEBUG
 
@@ -43,17 +42,6 @@ enum vt_port {
 
 // Function prototypes
 static void vt_delay(ULONG count);
-static void vt_write_wait(const UBYTE data, const UBYTE reg);
-static UBYTE vt_cmd_data_polled(const UBYTE cmd);
-static UBYTE vt_data_data_polled(const UBYTE data);
-static UBYTE vt_data_polled(void);
-static UBYTE vt_send_device_cmd(const enum vt_port port, UBYTE cmd);
-static UBYTE vt_get_cmd_byte(void);
-static void vt_set_cmd_byte(const UBYTE cmd);
-static UBYTE device_keyboard_reset(void);
-static void device_keyboard_led_animate(void);
-static void vt_set_leds(UBYTE leds);
-static void vt_flush(void);
 
 void __attribute__((interrupt)) vt_interrupt_handler(void);
 void vt_process_scancode(UBYTE sc);
