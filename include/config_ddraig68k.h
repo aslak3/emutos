@@ -1,4 +1,5 @@
 #ifdef MACHINE_DDRAIG68K
+
 # ifndef CONF_ATARI_HARDWARE
 #  define CONF_ATARI_HARDWARE 0
 # endif

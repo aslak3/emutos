@@ -50,28 +50,27 @@ enum key_state {
 };
 
 // Function prototypes
-static void vt82c42_delay(ULONG count);
-static void vt82c42_write_wait(UBYTE data, UBYTE reg);
-static UBYTE vt82c42_cmd_data_polled(UBYTE cmd);
-static UBYTE vt82c42_data_data_polled(UBYTE data);
-static UBYTE vt82c42_data_polled(void);
-static BOOL vt82c42_data_polled_timeout(UBYTE *data);
-static UBYTE vt82c42_send_device_cmd(enum VT82C42_port port, UBYTE cmd);
-static UBYTE vt82c42_get_cmd_byte(void);
-static void vt82c42_set_cmd_byte(UBYTE cmd);
+static void vt_write_wait(UBYTE data, UBYTE reg);
+static UBYTE vt_cmd_data_polled(UBYTE cmd);
+static UBYTE vt_data_data_polled(UBYTE data);
+static UBYTE vt_data_polled(void);
+static BOOL vt_data_polled_timeout(UBYTE *data);
+static UBYTE vt_send_device_cmd(enum VT82C42_port port, UBYTE cmd);
+static UBYTE vt_get_cmd_byte(void);
+static void vt_set_cmd_byte(UBYTE cmd);
 static BOOL device_keyboard_init(void);
 static BOOL device_keyboard_reset(void);
 static void device_keyboard_led_animate(void);
 static BOOL device_mouse_init(void);
 static BOOL device_mouse_reset(void);
 static BOOL device_mouse_configure(void);
-void keyboard_set_leds(UBYTE led);
-void vt82c42_flush(void);
+void vt_set_leds(UBYTE led);
+void vt_flush(void);
 
 void __attribute__((interrupt)) vt_interrupt_handler(void);
-void vt_process_scancode(UBYTE sc);
 void vt_process_mouse(int8_t *packet);
 void vt_handle_mouse(UBYTE data);
+void vt_process_scancode(UBYTE sc);
 
 static UBYTE g_key_mode = 0;
 static SBYTE mouse_packet[3];
@@ -110,7 +109,7 @@ static const UBYTE st_extended_make_code_map[] = {
     81 /*Page Down*/, 0 , 0 , 73 /*Page Up*/, 0 , 0
 };
 
-static void vt82c42_delay(ULONG count)
+static void vt_delay(ULONG count)
 {
     volatile ULONG delay = count;
 
@@ -118,7 +117,7 @@ static void vt82c42_delay(ULONG count)
     {}
 }
 
-static void vt82c42_write_wait(const UBYTE data, const UBYTE reg)
+static void vt_write_wait(const UBYTE data, const UBYTE reg)
 {
     UBYTE val;
 
@@ -131,12 +130,12 @@ static void vt82c42_write_wait(const UBYTE data, const UBYTE reg)
     PS2_WRITE(data, reg);
 }
 
-static UBYTE vt82c42_cmd_data_polled(const UBYTE cmd)
+static UBYTE vt_cmd_data_polled(const UBYTE cmd)
 {
     UBYTE val;
 
     /* Send the command */
-    vt82c42_write_wait(cmd, PS2_CMD);
+    vt_write_wait(cmd, PS2_CMD);
 
     /* Wait for the response by polling the OBF flag of the status register */
     do {
@@ -149,12 +148,12 @@ static UBYTE vt82c42_cmd_data_polled(const UBYTE cmd)
     return val;
 }
 
-static UBYTE vt82c42_data_data_polled(const UBYTE data)
+static UBYTE vt_data_data_polled(const UBYTE data)
 {
     UBYTE val;
 
     /* Write the data */
-    vt82c42_write_wait(data, PS2_DATA);
+    vt_write_wait(data, PS2_DATA);
 
     /* Wait for the response by polling the OBF flag of the status register */
     do {
@@ -167,7 +166,7 @@ static UBYTE vt82c42_data_data_polled(const UBYTE data)
     return val;
 }
 
-static UBYTE vt82c42_data_polled(void)
+static UBYTE vt_data_polled(void)
 {
     UBYTE val;
 
@@ -182,7 +181,7 @@ static UBYTE vt82c42_data_polled(void)
     return val;
 }
 
-static BOOL vt82c42_data_polled_timeout(UBYTE *data)
+static BOOL vt_data_polled_timeout(UBYTE *data)
 {
     UBYTE val;
     LONG timer;
@@ -206,7 +205,7 @@ static BOOL vt82c42_data_polled_timeout(UBYTE *data)
     return TRUE;
 }
 
-static UBYTE vt82c42_send_device_cmd(const enum VT82C42_port port, const UBYTE cmd)
+static UBYTE vt_send_device_cmd(const enum VT82C42_port port, const UBYTE cmd)
 {
     UBYTE retries = 10;
     UBYTE val;
@@ -215,10 +214,10 @@ static UBYTE vt82c42_send_device_cmd(const enum VT82C42_port port, const UBYTE c
     while (retries--) {
         if (port == VT82C42_MS) {
             /* Will write to the mouse output port */
-            vt82c42_write_wait(0xD4, PS2_CMD);
+            vt_write_wait(0xD4, PS2_CMD);
         }
 
-        val = vt82c42_data_data_polled(cmd);
+        val = vt_data_data_polled(cmd);
 
         if (retries == 1 || val != 0xFE) {
             break;
@@ -233,28 +232,28 @@ static UBYTE vt82c42_send_device_cmd(const enum VT82C42_port port, const UBYTE c
     return val;
 }
 
-static UBYTE vt82c42_get_cmd_byte(void)
+static UBYTE vt_get_cmd_byte(void)
 {
-    return vt82c42_cmd_data_polled(0x20);
+    return vt_cmd_data_polled(0x20);
 }
 
-static void vt82c42_set_cmd_byte(const UBYTE cmd)
+static void vt_set_cmd_byte(const UBYTE cmd)
 {
-    vt82c42_write_wait(0x60, PS2_CMD);
-    vt82c42_write_wait(cmd, PS2_DATA);
+    vt_write_wait(0x60, PS2_CMD);
+    vt_write_wait(cmd, PS2_DATA);
 }
 
 static BOOL device_keyboard_init(void)
 {
     /* Keyboard interface test */
-    if (vt82c42_cmd_data_polled(0xAB) != 0) {
+    if (vt_cmd_data_polled(0xAB) != 0) {
         KDEBUG(("device_keyboard_init(): Keyboard interface test failed\n\r"));
 
         return FALSE;
     }
 
     /* Enable the keyboard interface */
-    vt82c42_write_wait(0xAE, PS2_CMD);
+    vt_write_wait(0xAE, PS2_CMD);
 
     /* Reset keyboard */
     if (device_keyboard_reset() != TRUE) {
@@ -272,7 +271,7 @@ static BOOL device_keyboard_init(void)
 static BOOL device_keyboard_reset(void)
 {
     /* Send the keyboard reset command */
-    UBYTE resp = vt82c42_send_device_cmd(VT82C42_KB, 0xFF);
+    UBYTE resp = vt_send_device_cmd(VT82C42_KB, 0xFF);
     if (resp != 0xFA) {
         /* Keyboard did not acknowledge reset command */
         KDEBUG(("device_keyboard_reset: exected 0xFA, got 0x%02X\n\r", resp));
@@ -280,7 +279,7 @@ static BOOL device_keyboard_reset(void)
     }
 
     /* Keyboard acknowledged the reset command, it should also indicate whether selft tests were successful */
-    resp = vt82c42_data_polled();
+    resp = vt_data_polled();
     if (resp != 0xAA) {
         KDEBUG(("device_keyboard_reset: exected 0xAA, got 0x%02X\n\r", resp));
         return FALSE;
@@ -290,10 +289,10 @@ static BOOL device_keyboard_reset(void)
     return TRUE;
 }
 
-void keyboard_set_leds(UBYTE led)
+void vt_set_leds(UBYTE led)
 {
-    (void)vt82c42_data_data_polled(0xED);
-    (void)vt82c42_data_data_polled(led);
+    (void)vt_data_data_polled(0xED);
+    (void)vt_data_data_polled(led);
 }
 
 static void device_keyboard_led_animate(void)
@@ -311,15 +310,15 @@ static void device_keyboard_led_animate(void)
         }
 
         /* Set LED */
-        (void)vt82c42_data_data_polled(0xED);
-        (void)vt82c42_data_data_polled(anim[i]);
+        (void)vt_data_data_polled(0xED);
+        (void)vt_data_data_polled(anim[i]);
 
         /* Update LED status for tracking purposes */
         g_key_mode = anim[i];
 
         /* Delay between transitions */
         //timer = hz_200 + 20;
-        vt82c42_delay(10000);
+        vt_delay(10000);
         //while (hz_200 < timer) {}
     }
 }
@@ -327,14 +326,14 @@ static void device_keyboard_led_animate(void)
 static BOOL device_mouse_init(void)
 {
     /* Mouse interface test */
-    if (vt82c42_cmd_data_polled(0xA9) != 0) {
+    if (vt_cmd_data_polled(0xA9) != 0) {
         KDEBUG(("device_mouse_init(): Mouse interface test failed\n\r"));
 
         return FALSE;
     }
 
     /* Enable the mouse interface */
-    vt82c42_write_wait(0xA8, PS2_CMD);
+    vt_write_wait(0xA8, PS2_CMD);
 
     /* Reset mouse */
     if (device_mouse_reset() != TRUE) {
@@ -359,7 +358,7 @@ static BOOL device_mouse_reset(void)
     UBYTE data = 0xFF;
 
     /* Send the mouse reset command */
-    data = vt82c42_send_device_cmd(VT82C42_MS, 0xFF);
+    data = vt_send_device_cmd(VT82C42_MS, 0xFF);
     if (data != 0xFA) {
         /* Mouse did not acknowledge reset command */
         KDEBUG(("device_mouse_reset: exected 0xFA, got 0x%02X\n\r", data));
@@ -367,13 +366,13 @@ static BOOL device_mouse_reset(void)
     }
 
     /* Mouse acknowledged the reset command, it should also indicate whether selft tests were successful */
-    if (vt82c42_data_polled() != 0xAA) {
+    if (vt_data_polled() != 0xAA) {
         KDEBUG(("device_mouse_reset: exected 0xAA, got 0x%02X\n\r", data));
         return FALSE;
     }
 
     /* Finally, the mouse should send an ID to indicate that the device is a mouse */
-    success = vt82c42_data_polled_timeout(&data);
+    success = vt_data_polled_timeout(&data);
     if (success == FALSE || data != 0) {
         KDEBUG(("device_mouse_reset: success = %d, exected 0xAA, got 0x%02X\n\r", success, data));
         return FALSE;
@@ -386,32 +385,32 @@ static BOOL device_mouse_reset(void)
 static BOOL device_mouse_configure(void)
 {
     /* Set the report rate */
-    if (vt82c42_send_device_cmd(VT82C42_MS, 0xF3) != 0xFA) {
+    if (vt_send_device_cmd(VT82C42_MS, 0xF3) != 0xFA) {
         return FALSE;
     }
 
-    if (vt82c42_send_device_cmd(VT82C42_MS, 10) != 0xFA) {
+    if (vt_send_device_cmd(VT82C42_MS, 10) != 0xFA) {
         return FALSE;
     }
 
     /* Set the resolution */
-    if (vt82c42_send_device_cmd(VT82C42_MS, 0xE8) != 0xFA) {
+    if (vt_send_device_cmd(VT82C42_MS, 0xE8) != 0xFA) {
         return FALSE;
     }
 
-    if (vt82c42_send_device_cmd(VT82C42_MS, 1) != 0xFA) {
+    if (vt_send_device_cmd(VT82C42_MS, 1) != 0xFA) {
         return FALSE;
     }
 
     /* Enable reporting to start getting updates */
-    if (vt82c42_send_device_cmd(VT82C42_MS, 0xF4) != 0xFA) {
+    if (vt_send_device_cmd(VT82C42_MS, 0xF4) != 0xFA) {
         return FALSE;
     }
 
     return TRUE;
 }
 
-void vt82c42_flush(void)
+void vt_flush(void)
 {
     UBYTE status;
     /* Flush the output buffer */
@@ -420,7 +419,7 @@ void vt82c42_flush(void)
 
         if (status & STATUS_OBF) {
             (void)PS2_READ(PS2_DATA);
-            KDEBUG(("vt82c42_flush(): flush\n\r"));
+            KDEBUG(("vt_flush(): flush\n\r"));
         } else {
             break;
         }
@@ -457,40 +456,40 @@ UBYTE vt8242_init(void)
     KDEBUG(("vt8242_init()\n"));
 
     /* Disable keyboard and mouse ports, disable interrupts and translation */
-    vt82c42_set_cmd_byte(CMD_BYTE_AUX_OFF | CMD_BYTE_KBD_OFF);
-    vt82c42_flush();
-    KDEBUG(("vt82c42_init: Keyboard buffer flushed\n\r"));
+    vt_set_cmd_byte(CMD_BYTE_AUX_OFF | CMD_BYTE_KBD_OFF);
+    vt_flush();
+    KDEBUG(("vt_init: Keyboard buffer flushed\n\r"));
 
     KDEBUG(("vt8242_init: install keyboard interrupt handler\n"));
     vector_addr = &VEC_LEVEL1 + (CONF_VT82C42_AUTOVECTOR - 1);
     *vector_addr = (PFVOID)vt_interrupt_handler;
 
-    KDEBUG(("vt82c42_init: controller self test\n\r"));
-    data = vt82c42_cmd_data_polled(CMD_DIAG);
+    KDEBUG(("vt_init: controller self test\n\r"));
+    data = vt_cmd_data_polled(CMD_DIAG);
 	if (data != KBD_STATUS_DIAG_OK)
-		KDEBUG(("vt82c42_init: PS/2 keyboard controller FAILED.\n\r"));
+		KDEBUG(("vt_init: PS/2 keyboard controller FAILED.\n\r"));
     else
-        KDEBUG(("vt82c42_init: PS/2 keyboard controller passed.\n\r"));
+        KDEBUG(("vt_init: PS/2 keyboard controller passed.\n\r"));
 
     /* Controller firmware/hardware versions */
-    data = vt82c42_cmd_data_polled(CMD_VERSION_CTRL);
-    KDEBUG(("vt82c42_init: Version (A1)=%02X\n\r", data));
-    data = vt82c42_cmd_data_polled(CMD_VERSION);
-    KDEBUG(("vt82c42_init: Version (AF)=%02X\n\r", data));
+    data = vt_cmd_data_polled(CMD_VERSION_CTRL);
+    KDEBUG(("vt_init: Version (A1)=%02X\n\r", data));
+    data = vt_cmd_data_polled(CMD_VERSION);
+    KDEBUG(("vt_init: Version (AF)=%02X\n\r", data));
 
     /* Operating mode */
-    data = vt82c42_cmd_data_polled(CMD_GET_MODE);
+    data = vt_cmd_data_polled(CMD_GET_MODE);
     if (data == 0x01) {
-        KDEBUG(("vt82c42_init: PS/2 mode\n\r"));
+        KDEBUG(("vt_init: PS/2 mode\n\r"));
     } else {
-        KDEBUG(("vt82c42_init: AT mode (unsupported)\n\r"));
+        KDEBUG(("vt_init: AT mode (unsupported)\n\r"));
     }
 
     /* Check fuse status */
-    vt82c42_write_wait(0xC1, PS2_CMD);
+    vt_write_wait(0xC1, PS2_CMD);
     status = PS2_READ(PS2_CMD);
     if (!(status & 0x40)) {
-        KDEBUG(("vt82c42_init(): Fuse NOT OK - tests failed\n\r"));
+        KDEBUG(("vt_init(): Fuse NOT OK - tests failed\n\r"));
         return 0;
     }
 
@@ -500,20 +499,20 @@ UBYTE vt8242_init(void)
 
     if (kb_stat == FALSE) {
         /* Disable the keyboard interface because it is unused or errored */
-        vt82c42_write_wait(0xAD, PS2_CMD);
+        vt_write_wait(0xAD, PS2_CMD);
     }
 
     if (ms_stat == FALSE) {
         /* Disable the mouse interface because it is unused or errored */
-        vt82c42_write_wait(0xA7, PS2_CMD);
+        vt_write_wait(0xA7, PS2_CMD);
     }
 
     if (kb_stat == FALSE && ms_stat == FALSE) {
-        KDEBUG(("vt82c42_init(): no peripherals, early exit\n\r"));
+        KDEBUG(("vt_init(): no peripherals, early exit\n\r"));
         return 0;
     }
 
-    KDEBUG(("vt82c42_init(): viable peripherals: "));
+    KDEBUG(("vt_init(): viable peripherals: "));
 
     if (kb_stat) {
         KDEBUG(("keyboard "));
@@ -524,7 +523,7 @@ UBYTE vt8242_init(void)
     KDEBUG(("\n\r"));
 
     /* Enable interrupt sources in the controller */
-    data = vt82c42_get_cmd_byte();
+    data = vt_get_cmd_byte();
 
     if (kb_stat) {
         data |= CMD_BYTE_KBD_INT;
@@ -534,7 +533,7 @@ UBYTE vt8242_init(void)
         data |= CMD_BYTE_AUX_INT;
     }
 
-    vt82c42_set_cmd_byte(data);
+    vt_set_cmd_byte(data);
 
     return 1;
 }
@@ -564,294 +563,96 @@ void vt_process_mouse(int8_t *process)
         mouse_packet[1] = 0;
         mouse_packet[2] = 0;
     }
-    KDEBUG(("Mouse: X=%d Y=%d B=%d\n", (int)mouse_packet[1], (int)mouse_packet[2], mouse_packet[0] & 0x07));
+    //KDEBUG(("Mouse: X=%d Y=%d B=%d\n", (int)mouse_packet[1], (int)mouse_packet[2], mouse_packet[0] & 0x07));
 
     call_mousevec(mouse_packet);
 }
 
 void vt_handle_mouse(UBYTE data)
 {
-    static UBYTE pktctr = 0;
-    static UBYTE pkt[6] = {0};
+    static UBYTE mouse_cycle = 0;
+    static UBYTE mouse_bytes[3] = { 0 };
 
-    /* Synchronise the mouse handling */
-    if (pktctr == 0) {
-        /* Check for the start of a new packet */
-        if ((data & 0x08) == 0x08) {
-            /* Bit 3 set - valid start of packet */
-            pkt[pktctr++] = data;
-        } else {
-            /* Invalid start of packet - ignore */
-            KDEBUG(("desync\n"));
-            return;
-        }
-    }
-    else {
-        /* Collect up to 3 bytes of packet data */
-        if (pktctr < 3) {
-            pkt[pktctr++] = data;
-        }
-    }
+    switch (mouse_cycle)
+    {
+        case 0:
+            // FIrst byte should have bit 3 set (sync)
+            if (!(data & 0x08))
+                return;
 
-    /* Once 3 bytes have been collected, process the packet - form a new packet to be queued with EmuTOS */
-    if (pktctr == 3) {
-        pkt[3] = 0xF8;                      /* MOUSE_REL_POS_REPORT */
-        pkt[3] |= (pkt[0] & 0x01) << 1;     /* LEFT_BUTTON_DOWN */
-        pkt[3] |= (pkt[0] & 0x02) >> 1;     /* RIGHT_BUTTON_DOWN */
-        pkt[4] = pkt[1];                    /* X rel */
-        pkt[5] = -pkt[2];                   /* Y rel */
+            mouse_bytes[0] = data;
+            mouse_cycle = 1;
+            break;
+        
+        case 1:
+            mouse_bytes[1] = data;
+            mouse_cycle = 2;
+            break;
 
-        /* Overflow handling */
-        if (pkt[0] & 0x40) {
-            /* X overflow */
-            pkt[4] = pkt[0] & 0x10 ? -128 : 127;
-        }
-
-        if (pkt[0] & 0x80) {
-            /* X overflow */
-            pkt[5] = pkt[0] & 0x20 ? -128 : 127;
-        }
-
-        // KDEBUG(("Mouse: X=%i Y=%i B=%1X\n", (SBYTE)pkt[4], (SBYTE)pkt[5], pkt[0] & 0x03));
-
-        call_mousevec((SBYTE *)&pkt[3]);
-
-        /* Reset packet counter */
-        pktctr = 0;
+        case 2:
+            mouse_bytes[2] = data;
+            mouse_cycle = 0;
+            vt_process_mouse((int8_t *)mouse_bytes);
+            break;
     }
 }
 
-void vt_process_scancode(UBYTE code)
+void vt_process_scancode(UBYTE sc)
 {
-    static enum key_state state = KEY_STATE_DEFAULT;
-    const UBYTE make_code = code & 0x7F;
-    static BOOL is_break_code = FALSE;
-    UBYTE xlat_code = 0;
-    BOOL queue_code = FALSE;
-    BOOL update_leds = FALSE;
-    static BOOL is_escape2 = FALSE;
+    static UBYTE key_break = 0;
+    static UBYTE key_extended = 0;
+    static UBYTE key_remaining = 0;
 
-    /* Ignore code 0 */
-    if (code == 0) {
+	UBYTE register chr;
+
+    if (key_remaining > 0)
+    {
+        key_remaining--;
         return;
     }
-
-    switch (state) {
-        case KEY_STATE_ESCAPE:
-            if (code == 0xF0) {
-                /* Next code will be a break code */
-                is_break_code = TRUE;
-
-                return;
-            }
-
-            if (code > COMET_VGA_MAX_KEY_CODE) {
-                /* Ignore/consume codes that are out of range */
-                is_break_code = FALSE;
-                /* Should we return to the default state here? */
-
-                return;
-            }
-
-            if (code == 0x12) {
-                /* Enable/disable double escaped code set */
-                is_escape2 = is_break_code ? FALSE : TRUE;
-                is_break_code = FALSE;
-                state = KEY_STATE_DEFAULT;
-
-                return;
-            }
-
-            /* Look up translated code ... */
-            xlat_code = is_escape2 ? ps2_extended2_scancode_map[make_code] : ps2_extended_scancode_map[make_code];
-
-            if (xlat_code == 0) {
-                /* Ignore/consume this code */
-                is_break_code = FALSE;
-                state = KEY_STATE_DEFAULT;
-
-                return;
-            }
-
-            if ((SBYTE)xlat_code != -1) {
-                /* This code will be queued */
-                queue_code = TRUE;
-                state = KEY_STATE_DEFAULT;
-            }
-
-            break;
-
-        case KEY_STATE_UNTIL_BREAK:
-            if (code == 0xF0) {
-                /* Next code will be a break code */
-                is_break_code = TRUE;
-                state = KEY_STATE_DEFAULT;
-            }
-
-            break;
-
-        case KEY_STATE_PAUSE_BREAK:
-            if (code == 0xF0) {
-                /* Next code will be a break code */
-                is_break_code = TRUE;
-
-                return;
-            }
-
-            if (!is_escape2) {
-                if (code == 0x14) {
-                    /* Abuse the is_escape2 flag to keep track of where we are processing this key */
-                    is_escape2 = TRUE;
-                } else if (is_break_code && code == 0x77) {
-                    /* Sequence complete */
-                    is_break_code = FALSE;
-                    state = KEY_STATE_DEFAULT;
-                }
-            } else {
-                if (code == 0x77) {
-                    /* Pause/Break key pressed */
-                    /* TODO: something? */
-                    KDEBUG(("vt82c42_handle_key(): Pause/Break\n"));
-                } else if (is_break_code && code == 0x14) {
-                    is_break_code = FALSE;
-                    is_escape2 = FALSE;
-                }
-            }
-
-            return;
-
-        default:
-            if (code == 0xF0) {
-                /* Next code will be a break code */
-                is_break_code = TRUE;
-
-                return;
-            }
-
-            if (code == 0xE0) {
-                /* Extended key code */
-                state = KEY_STATE_ESCAPE;
-
-                return;
-            }
-
-            if (code == 0xE1) {
-                /* Probably Pause/Break */
-                state = KEY_STATE_PAUSE_BREAK;
-
-                return;
-            }
-
-            if (code > COMET_VGA_MAX_KEY_CODE) {
-                /* Ignore/consume codes that are out of range */
-                is_break_code = FALSE;
-
-                return;
-            }
-
-            /* Look up translated code ... */
-            xlat_code = g_key_mode & STATUS_NUM_LOCK ? ps2_scancode_map_numlock[make_code] : ps2_scancode_map[make_code];
-
-            if (xlat_code == 0) {
-                /* Ignore/consume this code */
-                is_break_code = FALSE;
-
-                return;
-            }
-
-            if ((SBYTE)xlat_code != -1) {
-                /* This code will be queued */
-                queue_code = TRUE;
-            } else {
-                /* Special handling */
-                if (make_code == 0x58) {
-                    /* Caps lock */
-                    if (!is_break_code) {
-                        g_key_mode ^= STATUS_CAPS_LOCK;
-                        update_leds = TRUE;
-
-                        /* Consume repeats to prevent toggling */
-                        state = KEY_STATE_UNTIL_BREAK;
-                    }
-
-                    xlat_code = 0x3A;
-                    queue_code = TRUE;
-
-                    break;
-                }
-
-                if (make_code == 0x7E) {
-                    /* Scroll lock */
-                    if (!is_break_code) {
-                        g_key_mode ^= STATUS_SCROLL_LOCK;
-                        update_leds = TRUE;
-
-                        /* Consume repeats to prevent toggling */
-                        state = KEY_STATE_UNTIL_BREAK;
-                    }
-
-                    xlat_code = 0x46;
-                    queue_code = TRUE;
-
-                    break;
-                }
-
-                if (make_code == 0x77) {
-                    /* Num lock */
-                    if (!is_break_code) {
-                        g_key_mode ^= STATUS_NUM_LOCK;
-                        update_leds = TRUE;
-
-                        /* Consume repeats to prevent toggling */
-                        state = KEY_STATE_UNTIL_BREAK;
-                    }
-
-                    xlat_code = 0x45;
-                    queue_code = TRUE;
-
-                    break;
-                }
-
-                if (make_code == 0x7C) {
-                    /* Numpad * */
-                    if (!is_break_code) {
-                        push_ascii_ikbdiorec('*');
-                    }
-
-                    is_break_code = FALSE;
-
-                    return;
-                }
-
-                if (make_code == 0x71) {
-                    /* Numpad . */
-                    if (!is_break_code) {
-                        push_ascii_ikbdiorec('.');
-                    }
-
-                    is_break_code = FALSE;
-
-                    return;
-                }
-            }
+    else if (sc == SCAN_CODE_BREAK)
+        key_break = 1;
+    else if (sc == SCAN_CODE_MODIFIER)
+        key_extended  = 1;
+    else if (sc == SCAN_CODE_PSBRK)
+    {
+        // Pause/Break keys extended sequence, ignore for now
+        key_remaining = 7;
     }
-
-    if (queue_code) {
-        if (is_break_code) {
-            /* Set MSb for break code */
-            xlat_code |= 0x80;
-
-            is_break_code = FALSE;
+    else
+    {
+        if (sc == SCAN_CODE_CAPLOCK && !key_break)
+        {
+            g_key_mode ^= STATUS_CAPS_LOCK;
+            vt_set_leds(g_key_mode);
+        }
+        else if (sc == SCAN_CODE_NUMLOCK && !key_break)
+        {
+            g_key_mode ^= STATUS_NUM_LOCK;
+            vt_set_leds(g_key_mode);
+        }
+        else if (sc == SCAN_CODE_SCRLOCK && !key_break)
+        {
+            g_key_mode ^= STATUS_SCROLL_LOCK;
+            vt_set_leds(g_key_mode);
         }
 
-        call_ikbdraw(xlat_code);
-    }
+        sc &= 0x7f;
 
-    if (update_leds) {
-        /* Set LEDs */
-        (void)vt82c42_data_data_polled(0xED);
-        (void)vt82c42_data_data_polled(g_key_mode);
-    }
+        if (key_extended)
+            chr = st_extended_make_code_map[sc];
+        else
+            chr = st_make_code_map[sc];
+
+        if (key_break)
+            chr |= 0x80; // set break code
+
+        
+        KDEBUG(("call_ikbdraw 0x%02x\n", chr));
+        call_ikbdraw(chr);
+        key_extended = 0;
+        key_break = 0;        
+	}
 }
 
 #endif
