@@ -85,7 +85,7 @@
 #define STATUS_SYS			    0x04	// system flag - unused
 #define STATUS_CMD			    0x08	// 1 = command in input buffer, 0 = data
 #define STATUS_INH			    0x10	// 1 = Inhibit - unused
-#define STATUS_TX				0x20	// 1 = Transmit Timeout has occured
+#define STATUS_MS_DATA			0x20	
 #define STATUS_RX				0x40	// 1 = Receive Timeout has occured
 #define STATUS_PERR			    0x80	// 1 = Parity Error from Keyboard
 
