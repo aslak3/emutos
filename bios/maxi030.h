@@ -34,11 +34,3 @@ void maxi030_init(void);
 #define VCARDLED (*(uint16_t volatile *)(VCARDREGBASE+0xa))
 #define VCARDSTMODE (*(uint16_t volatile *)(VCARDREGBASE+0xe))
 #define VCARDVBLANKINTCLEAR (*(uint16_t volatile *)(VCARDREGBASE+0x10))
-
-//#define BASE16C654 0x102000
-
-/* beta */
-
-//#define SPISELECTS (*(uint8_t volatile *)(BETABASE+0xe))
-//#define SPIDATA (*(uint8_t volatile *)(BETABASE+0x10))
-//#define TIMERCOUNT  (*(uint16_t volatile *)(BETABASE+0x12))

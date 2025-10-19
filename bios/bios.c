@@ -212,6 +212,8 @@ extern PFVOID vbl_list[8]; /* Default array for vblqueue */
 
 static void bios_init(void)
 {
+    LED = 1;
+
     KDEBUG(("bios_init()\n"));
 
     /* initialize Native Features, if available

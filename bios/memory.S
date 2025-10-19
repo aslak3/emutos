@@ -18,8 +18,7 @@
 #include "memory.h"
 
 #ifdef MACHINE_MAXI030
-#error
-#define EMUTOS_LIVES_IN_RAM 0
+#define EMUTOS_LIVES_IN_RAM 1
 #endif
 
 // ==== Definitions ==========================================================

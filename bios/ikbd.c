@@ -39,6 +39,7 @@
 #include "coldfire.h"
 #include "amiga.h"
 #include "lisa.h"
+#include "sc26c94.h"
 
 
 /* forward declarations */
@@ -924,6 +925,9 @@ LONG bcostat4(void)
     }
 #elif CONF_WITH_FLEXCAN
     return -1; /* Always OK */
+#elif CONF_WITH_IKBD_SC26C94
+    volatile UBYTE *porta_base = (volatile UBYTE *) BASEPA26C94;
+    return porta_base[SR26C94] & 0x04 ? -1 : 0;
 #else
     return -1; /* OK (but output will be ignored) */
 #endif
@@ -965,7 +969,11 @@ void ikbd_writeb(UBYTE b)
     coldfire_flexcan_ikbd_writeb(b);
 #elif defined(MACHINE_AMIGA)
     amiga_ikbd_writeb(b);
+#elif CONF_WITH_IKBD_SC26C94
+    volatile UBYTE *porta_base = (volatile UBYTE *) BASEPA26C94;
+    porta_base[TXFIFO26C94] = b;
 #endif
+
 }
 
 /* send a word to the IKBD as two bytes - for general use */
@@ -994,6 +1002,17 @@ static UBYTE ikbd_readb(WORD timeout)
         delay_loop(loopcount_1_msec);
     }
 
+    return 0; /* bogus value when timeout */
+
+#elif CONF_WITH_IKBD_SC26C94
+    WORD i;
+    volatile UBYTE *porta_base = (volatile UBYTE *) BASEPA26C94;
+    for (i = 0; i < timeout; i++) {
+        if (porta_base[SR26C94] & 0x01) {
+            return porta_base[RXFIFO26C94];
+        }
+        delay_loop(loopcount_1_msec);
+    }
     return 0; /* bogus value when timeout */
 #else
     return 0; /* bogus value */

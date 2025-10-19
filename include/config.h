@@ -39,6 +39,8 @@
 #  define EMUTOS_LIVES_IN_RAM 0
 #endif
 
+
+
 /*
  * Determine if we use static Alt-RAM
  */
@@ -700,6 +702,18 @@
 # ifndef CONF_VRAM_ADDRESS
 #  define CONF_VRAM_ADDRESS 0x90000000
 # endif
+# ifndef CONF_WITH_IKBD_SC26C94
+#  define CONF_WITH_IKBD_SC26C94 1
+# endif
+# ifndef CONF_SERIAL_CONSOLE_POLLING_MODE
+#  define CONF_SERIAL_CONSOLE_POLLING_MODE 1
+# endif
+# ifndef CONF_SERIAL_CONSOLE
+#  define CONF_SERIAL_CONSOLE 1
+# endif
+
+#  define EMUTOS_LIVES_IN_RAM 1
+
 #endif
 
 /*
