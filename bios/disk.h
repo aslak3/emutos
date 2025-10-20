@@ -93,6 +93,8 @@ extern UNIT units[];
 
 /* physical disk functions */
 
+void byteswap(void *buffer, ULONG size);
+
 #if CONF_WITH_XHDI
 LONG disk_inquire(UWORD unit, ULONG *blocksize, ULONG *deviceflags, char *productname, UWORD stringlen);
 #endif

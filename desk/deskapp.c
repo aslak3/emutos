@@ -49,6 +49,7 @@
 #include "xbiosbind.h"
 #include "biosext.h"
 
+#include "ddraig.h"
 
 /*
  *  width of drag box (in characters) when dragging a file displayed as text
@@ -1086,6 +1087,8 @@ static WORD desk_get_videomode(void)
 
 #ifdef MACHINE_AMIGA
     mode = amiga_vgetmode();
+#elif MACHINE_DDRAIG68K
+    mode = ddraig_vgetmode();
 #else
 
 #if CONF_WITH_VIDEL

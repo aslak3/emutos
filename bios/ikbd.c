@@ -37,10 +37,13 @@
 #include "delay.h"
 #include "bios.h"
 #include "coldfire.h"
+#include "serport.h"
 #include "amiga.h"
 #include "lisa.h"
 #include "sc26c94.h"
-
+#include "ace_uart.h"
+#include "duart68681.h"
+#include "vt82c42.h"
 
 /* forward declarations */
 static WORD convert_scancode(UBYTE *scancodeptr);
@@ -237,33 +240,32 @@ LONG bconstat2(void)
 {
 #if CONF_SERIAL_CONSOLE_POLLING_MODE
     /* Poll the serial port */
-    return bconstat(1);
-#else
+    LONG stat = bconstat(1);
+    if (stat != 0) return stat;
+#endif
     /* Check the IKBD IOREC */
     if (ikbdiorec.head == ikbdiorec.tail) {
         return 0;               /* iorec empty */
     } else {
         return -1;              /* not empty => input available */
     }
-#endif
 }
 
 LONG bconin2(void)
 {
     ULONG value;
-#if CONF_SERIAL_CONSOLE_POLLING_MODE
-    /* Poll the serial port */
-    UBYTE ascii = (UBYTE)bconin(1);
-    value = ikbdiorec_from_ascii(ascii);
-#else
-    /* Check the IKBD IOREC */
-    WORD old_sr;
 
     while (!bconstat2()) {
 #if USE_STOP_INSN_TO_FREE_HOST_CPU
         stop_until_interrupt();
 #endif
     }
+#if CONF_SERIAL_CONSOLE_POLLING_MODE
+    /* Poll the serial port */
+    UBYTE ascii = (UBYTE)bconin(1);
+    value = ikbdiorec_from_ascii(ascii);
+#else
+    WORD old_sr;
     /* disable interrupts */
     old_sr = set_sr(0x2700);
 
@@ -272,10 +274,9 @@ LONG bconin2(void)
         ikbdiorec.head = 0;
     }
     value = *(ULONG_ALIAS *) (ikbdiorec.buf + ikbdiorec.head);
-
     /* restore interrupts */
     set_sr(old_sr);
-#endif /* CONF_SERIAL_CONSOLE_POLLING_MODE */
+#endif
 
     if (!(conterm & 8))         /* shift status not wanted? */
         value &= 0x00ffffffL;   /* true, so clean it out */
@@ -928,6 +929,14 @@ LONG bcostat4(void)
 #elif CONF_WITH_IKBD_SC26C94
     volatile UBYTE *porta_base = (volatile UBYTE *) BASEPA26C94;
     return porta_base[SR26C94] & 0x04 ? -1 : 0;
+#elif CONF_WITH_IKBD_ACE
+    if (ikbd_ace.lsr & ACE_LSR_THRE) {
+        return -1;              /* OK */
+    } else {
+        /* Data register not empty */
+        return 0;               /* not OK */
+    }
+>>>>>>> dragon/wip
 #else
     return -1; /* OK (but output will be ignored) */
 #endif
@@ -972,6 +981,11 @@ void ikbd_writeb(UBYTE b)
 #elif CONF_WITH_IKBD_SC26C94
     volatile UBYTE *porta_base = (volatile UBYTE *) BASEPA26C94;
     porta_base[TXFIFO26C94] = b;
+#elif CONF_WITH_IKBD_ACE
+    ikbd_ace.rbr_thr_divlsb = b;
+#elif CONF_WITH_IKBD_DUART
+    volatile UBYTE *duart_base = (volatile UBYTE *) DUART_BASE;
+    duart_base[DUART_THRB] = b;
 #endif
 
 }
@@ -1005,11 +1019,32 @@ static UBYTE ikbd_readb(WORD timeout)
     return 0; /* bogus value when timeout */
 
 #elif CONF_WITH_IKBD_SC26C94
+
     WORD i;
     volatile UBYTE *porta_base = (volatile UBYTE *) BASEPA26C94;
     for (i = 0; i < timeout; i++) {
         if (porta_base[SR26C94] & 0x01) {
             return porta_base[RXFIFO26C94];
+
+#elif CONF_WITH_IKBD_ACE
+
+    WORD i;
+
+    /* We have to use a timeout to avoid waiting forever
+     * if the keyboard is unplugged.
+     */
+    for (i = 0; i < timeout; i++) {
+        if (ikbd_ace.lsr & ACE_LSR_DR)
+            return ikbd_ace.rbr_thr_divlsb;
+        delay_loop(loopcount_1_msec);
+    }
+    return 0; /* bogus value when timeout */
+#elif CONF_WITH_IKBD_DUART
+    WORD i;
+    volatile UBYTE *duart_base = (volatile UBYTE *) DUART_BASE;
+    for (i = 0; i < timeout; i++) {
+        if (duart_base[DUART_SRB] & DUART_SR_RXRDY) {
+            return duart_base[DUART_RHRB];
         }
         delay_loop(loopcount_1_msec);
     }
@@ -1073,6 +1108,27 @@ static void ikbd_reset(void)
         ;
 }
 
+#if CONF_WITH_IKBD_ACE
+static void init_uart_ace(volatile struct ACE_UART *ace)
+{
+    // Divisor = freq_in / baud * 16 = 7372800 / 9600 * 16 = 48
+    ace->ier_divmsb = 0; // Clear Interrupt Enable Register
+    ace->lcr = 0x80; // Set DLAB flag
+    ace->rbr_thr_divlsb = 48; // Set to 48 => 9600 baud with 7.3728 MHz clock.
+    ace->ier_divmsb = 0;
+    ace->lcr = 0; // Clear Divisor Latch Bit (DLAB;
+    ace->lcr = 0x3; // Set 8 bit data, 1 stop bit;
+    // Disabling the FIFO because I can't get it to work.
+    ace->fifo_iir = 0x06; // Clear both FIFO, set trigger level to 1 byte
+    ace->fifo_iir = 0x00; // Disable the FIFO
+    ace->mcr = 0x03; // Assert RTS and DTR.
+    (void) ace->lsr; // Read Line Status Register to clear any pending interrupts.
+    (void) ace->msr; // Read Modem Status Register to clear any pending interrupts.
+    (void) ace->rbr_thr_divlsb; // Read the Receive Buffer Register to clear any pending interrupts.
+    ace->ier_divmsb = 0x00; // Enable receive interrupt.
+}
+#endif
+
 /*
  *      FUNCTION:  This routine resets the keyboard,
  *        configures the MFP so we can get interrupts
@@ -1102,6 +1158,15 @@ void kbd_init(void)
 #ifdef MACHINE_LISA
     lisa_kbd_init();
 #endif
+
+#ifdef CONF_WITH_VT82C42
+    vt8242_init();
+#endif
+
+#if CONF_WITH_IKBD_ACE
+    /* Initialize the ACE interface to keyboard. */
+    init_uart_ace(&ikbd_ace);
+#endif /* CONF_WITH_IKBD_ACE */
 
     /* initialize the IKBD */
     ikbd_reset();

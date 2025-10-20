@@ -13,7 +13,7 @@
  * option any later version.  See doc/license.txt for details.
  */
 
-/*#define ENABLE_KDEBUG*/
+/* #define ENABLE_KDEBUG */
 
 #include "emutos.h"
 #include "machine.h"
@@ -29,7 +29,11 @@
 #include "xbiosbind.h"
 #include "vectors.h"
 #include "country.h"
-#include "../obj/header.h"
+#ifdef WITH_CMAKE
+  #include "header.h"
+#else
+  #include "../obj/header.h"
+#endif
 #include "biosmem.h"
 #include "biosext.h"
 #include "bios.h"
@@ -37,6 +41,8 @@
 #include "amiga.h"
 #include "lisa.h"
 #include "nova.h"
+#include "xosera.h"
+#include "ddraig.h"
 
 void detect_monitor_change(void);
 static void setphys(const UBYTE *addr);
@@ -413,6 +419,10 @@ WORD check_moderez(WORD moderez)
     return amiga_check_moderez(moderez);
 #endif
 
+#ifdef MACHINE_DDRAIG68K
+    return ddraig_check_moderez(moderez);
+#endif
+
 #if CONF_WITH_VIDEL
     if (has_videl)
         return videl_check_moderez(moderez);
@@ -625,11 +635,35 @@ void screen_init_mode(void)
     amiga_screen_init();
 #endif
 
+#if CONF_WITH_XOSERA_CONSOLE
+    xosera_screen_init();
+#endif
+
+#if defined(CONF_WITH_DDRAIGVGA_CONSOLE)
+    KDEBUG(("DdraigVGA console init\n"));
+    vblsem = 0;
+    VEC_LEVEL1 = int_vbl;
+    ddraigvga_screen_init();
+#endif
+
+
 #ifdef MACHINE_LISA
     lisa_screen_init();
 #endif
 
+#ifdef MACHINE_BITSY_V1
+    VEC_VBL = int_vbl;
+    vblsem = 0;
+#endif
+
+#if CONF_SERIAL_CONSOLE
+    /* Set the video mode to programs think they're running in an 80-column mode. */
+    sshiftmod = ST_HIGH;
+    /* Prevent resolution changes. */
+    rez_was_hacked = TRUE;
+#else
     rez_was_hacked = FALSE; /* initial assumption */
+#endif
 }
 
 /* Initialize the video address (mode is already set) */
@@ -686,6 +720,11 @@ int rez_changeable(void)
 #ifdef MACHINE_AMIGA
     return TRUE;
 #endif
+
+#ifdef MACHINE_DDRAIG68K
+    return TRUE;
+#endif
+
 
 #if CONF_WITH_VIDEL
     if (has_videl)  /* can't change if real ST monochrome monitor */
@@ -821,6 +860,14 @@ void screen_get_current_mode_info(UWORD *planes, UWORD *hz_rez, UWORD *vt_rez)
     *planes = 1;
     *hz_rez = 720;
     *vt_rez = 364;
+#elif CONF_WITH_XOSERA_CONSOLE
+    *planes = 1;
+    *hz_rez = 640;
+    *vt_rez = 240;
+#elif defined(CONF_WITH_DDRAIGVGA_CONSOLE)
+    *planes = 16;
+    *hz_rez = 640;
+    *vt_rez = 480;
 #else
     atari_get_current_mode_info(planes, hz_rez, vt_rez);
 #endif
@@ -1048,6 +1095,8 @@ const UBYTE *physbase(void)
     return amiga_physbase();
 #elif defined(MACHINE_LISA)
     return lisa_physbase();
+#elif defined(MACHINE_DDRAIG68K)
+    return ddraig_physbase();
 #elif CONF_WITH_ATARI_VIDEO
     return atari_physbase();
 #else
@@ -1066,6 +1115,8 @@ static void setphys(const UBYTE *addr)
     amiga_setphys(addr);
 #elif defined(MACHINE_LISA)
     lisa_setphys(addr);
+#elif defined(MACHINE_DDRAIG68K)
+    ddraig_setphys(addr);
 #elif CONF_WITH_ATARI_VIDEO
     atari_setphys(addr);
 #endif
@@ -1153,6 +1204,8 @@ WORD setscreen(UBYTE *logLoc, const UBYTE *physLoc, WORD rez, WORD videlmode)
 
 #ifdef MACHINE_AMIGA
     amiga_setrez(rez, videlmode);
+#elif MACHINE_DDRAIG68K
+    ddraig_setrez(rez, videlmode);
 #elif CONF_WITH_ATARI_VIDEO
     atari_setrez(rez, videlmode);
 #endif

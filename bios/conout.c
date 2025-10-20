@@ -25,6 +25,8 @@
 #include "conout.h"
 #include "../vdi/vdi_defs.h"    /* for phys_work stuff */
 
+#if !defined(CONF_WITH_XOSERA_CONSOLE) && !defined(CONF_WITH_DDRAIGVGA_CONSOLE)
+
 #define PLANE_OFFSET    2       /* interleaved planes */
 
 #if CONF_WITH_VIDEL
@@ -750,3 +752,5 @@ void scroll_down(UWORD start_line)
     /* exit thru blank out */
     blank_out(0, start_line , v_cel_mx, start_line);
 }
+
+#endif

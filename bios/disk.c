@@ -124,7 +124,7 @@ static void disk_init_one(UWORD unit,LONG *devices_available)
     {
         /* Our internal drivers will never be used for this unit */
         punit->features |= UNIT_NATFEATS;
-        KINFO(("unit %d is managed by NatFeats: %s\n", unit, productname));
+        KDEBUG(("unit %d is managed by NatFeats: %s\n", unit, productname));
     }
     else
 #endif
@@ -140,7 +140,7 @@ static void disk_init_one(UWORD unit,LONG *devices_available)
             KDEBUG(("disk_init_one(): internal_inquire(%d) returned %ld\n",unit,rc));
             return;
         }
-        KINFO(("unit %d is managed by EmuTOS internal drivers: %s\n", unit, productname));
+        KDEBUG(("unit %d is managed by EmuTOS internal drivers: %s\n", unit, productname));
     }
 
     /* try to update with real capacity & blocksize */
@@ -491,7 +491,7 @@ PHYSSECT physsect, physsect2;
  * This function is only used during byteswap detection.
  * Subsequent byteswap will be performed by the IDE driver itself.
  */
-static void byteswap(void *buffer, ULONG size)
+void byteswap(void *buffer, ULONG size)
 {
     UWORD *p;
 
@@ -508,7 +508,7 @@ static BOOL unit_is_byteswapped(UWORD unit)
 
     if (physsect.mbr.bootsig == 0xaa55)
     {
-        KINFO(("DOS MBR byteswapped signature detected: enabling byteswap\n"));
+        KDEBUG(("DOS MBR byteswapped signature detected: enabling byteswap\n"));
         return TRUE;
     }
 
@@ -525,7 +525,7 @@ static BOOL unit_is_byteswapped(UWORD unit)
 
     if (OK_id(partid))
     {
-        KINFO(("Atari-style byteswapped root sector detected: enabling byteswap\n"));
+        KDEBUG(("Atari-style byteswapped root sector detected: enabling byteswap\n"));
         return TRUE;
     }
 
@@ -668,7 +668,7 @@ static WORD process_dos_mbr(UWORD unit, LONG *devices_available)
         /* start sector of next extended boot record, if present */
         next_extended = 0;
 
-        KINFO((" MBR at %lu", extended_offs));
+        KDEBUG((" MBR at %lu", extended_offs));
 
         for (i = 0; i < 4; i++) {
             ULONG start, size;
@@ -728,7 +728,7 @@ static WORD process_dos_mbr(UWORD unit, LONG *devices_available)
             case 0x0e:
                 if (add_partition(unit,devices_available,pid,start+extended_offs,size) < 0)
                     return -1;
-                KINFO((" $%02x", type));
+                KDEBUG((" $%02x", type));
                 break;
             default:
                 KDEBUG((" unrecognised partition type: ignored\n"));
@@ -736,7 +736,7 @@ static WORD process_dos_mbr(UWORD unit, LONG *devices_available)
             }
         }
 
-        KINFO(("\n"));
+        KDEBUG(("\n"));
 
         /* read next extended boot record */
         if (next_extended != 0) {
@@ -778,7 +778,7 @@ static int atari_partition(UWORD unit,LONG *devices_available)
     if (disk_rw(unit, RW_READ, 0, 1, sect))
         return -1;
 
-    KINFO(("%cd%c: ","ashf????"[major>>3],'a'+(major&0x07)));
+    KDEBUG(("%cd%c: ","ashf????"[major>>3],'a'+(major&0x07)));
 
 #if CONF_WITH_IDE
     /* IDE drives may be byteswapped if partitioned on foreign hardware */
@@ -794,7 +794,7 @@ static int atari_partition(UWORD unit,LONG *devices_available)
         if (size) {
             if (add_partition(unit,devices_available,"BGM",0UL,size) < 0)
                 return -1;
-            KINFO((" fake BGM\n"));
+            KDEBUG((" fake BGM\n"));
             return 1;
         }
     }
@@ -816,7 +816,7 @@ static int atari_partition(UWORD unit,LONG *devices_available)
          * format partition table (there's no reliable magic or the like
          * :-()
          */
-        KINFO((" Non-ATARI root sector\n"));
+        KDEBUG((" Non-ATARI root sector\n"));
         return 0;
     }
 
@@ -833,7 +833,7 @@ static int atari_partition(UWORD unit,LONG *devices_available)
      * value.
      */
     if (units[unit].size < hd_size) {
-        KINFO(("Setting disk capacity from partition table value\n"));
+        KDEBUG(("Setting disk capacity from partition table value\n"));
         units[unit].size = hd_size;
     }
 
@@ -854,24 +854,24 @@ static int atari_partition(UWORD unit,LONG *devices_available)
             if (add_partition(unit,devices_available,pi->id,pi->st,pi->siz) < 0)
                 break;  /* max number of partitions reached */
 
-            KINFO((" %c%c%c", pi->id[0], pi->id[1], pi->id[2]));
+            KDEBUG((" %c%c%c", pi->id[0], pi->id[1], pi->id[2]));
             continue;
         }
         /* extension partition */
 #ifdef ICD_PARTS
         part_fmt = 1;
 #endif
-        KINFO((" XGM<"));
+        KDEBUG((" XGM<"));
         partsect = extensect = pi->st;
         while (1) {
             if (disk_rw(unit, RW_READ, partsect, 1, physsect2.sect)) {
-                KINFO((" block %ld read failed\n", partsect));
+                KDEBUG((" block %ld read failed\n", partsect));
                 return 0;
             }
 
             /* ++roman: sanity check: bit 0 of flg field must be set */
             if (!(xrs->part[0].flg & 1)) {
-                KINFO(( "\nFirst sub-partition in extended partition is not valid!\n"));
+                KDEBUG(( "\nFirst sub-partition in extended partition is not valid!\n"));
                 break;
             }
 
@@ -879,14 +879,14 @@ static int atari_partition(UWORD unit,LONG *devices_available)
                               partsect+xrs->part[0].st,xrs->part[0].siz) < 0)
                 break;  /* max number of partitions reached */
 
-            KINFO((" %c%c%c", xrs->part[0].id[0], xrs->part[0].id[1], xrs->part[0].id[2]));
+            KDEBUG((" %c%c%c", xrs->part[0].id[0], xrs->part[0].id[1], xrs->part[0].id[2]));
 
             if (!(xrs->part[1].flg & 1)) {
                 /* end of linked partition list */
                 break;
             }
             if (memcmp( xrs->part[1].id, "XGM", 3 ) != 0) {
-                KINFO(("\nID of extended partition is not XGM!\n"));
+                KDEBUG(("\nID of extended partition is not XGM!\n"));
                 break;
             }
 
@@ -898,7 +898,7 @@ static int atari_partition(UWORD unit,LONG *devices_available)
         pi = &rs->icdpart[0];
         /* sanity check: no ICD format if first partition invalid */
         if (OK_id(pi->id)) {
-            KINFO((" ICD<"));
+            KDEBUG((" ICD<"));
             for (; pi < &rs->icdpart[8]; pi++) {
                 /* accept only GEM,BGM,RAW,LNX,SWP partitions */
                 if (!((pi->flg & 1) && OK_id(pi->id)))
@@ -906,14 +906,14 @@ static int atari_partition(UWORD unit,LONG *devices_available)
                 part_fmt = 2;
                 if (add_partition(unit,devices_available,pi->id,pi->st,pi->siz) < 0)
                     break;  /* max number of partitions reached */
-                KINFO((" %c%c%c", pi->id[0], pi->id[1], pi->id[2]));
+                KDEBUG((" %c%c%c", pi->id[0], pi->id[1], pi->id[2]));
             }
-            KINFO((" >"));
+            KDEBUG((" >"));
         }
     }
 #endif
 
-    KINFO(("\n"));
+    KDEBUG(("\n"));
 
     return 1;
 }

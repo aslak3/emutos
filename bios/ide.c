@@ -39,6 +39,8 @@
 
 #if CONF_WITH_IDE
 
+#define CONF_WITH_IDE_CHS 0
+
 #ifdef MACHINE_M548X
 
 #include "coldpriv.h"
@@ -117,11 +119,19 @@ struct IDE
     { i->cylinder_high = HIBYTE(a); i->cylinder_low = LOBYTE(a); }
 #define IDE_WRITE_COMMAND_HEAD(i,a,b) \
     { i->head = b; i->command = a; }
-#define IDE_WRITE_CONTROL(i,a)    i->control = a
+
+#if defined(MACHINE_TINY68K) || defined(MACHINE_ROBERTS7531) || defined(MACHINE_MEGA_68000) || defined(MACHINE_DDRAIG68K)
+# define IDE_WRITE_CONTROL(i,a)
+# define IDE_READ_ALT_STATUS(i)    i->command
+#else
+# define IDE_WRITE_CONTROL(i,a)    i->control = a
+# define IDE_READ_ALT_STATUS(i)    i->control
+#endif
+
 #define IDE_WRITE_HEAD(i,a)       i->head = a
+#define IDE_WRITE_FEATURES(i,a)   i->features = a
 
 #define IDE_READ_STATUS(i)        i->command
-#define IDE_READ_ALT_STATUS(i)    i->control
 #define IDE_READ_ERROR(i)         i->features
 #define IDE_READ_SECTOR_NUMBER_SECTOR_COUNT(i) \
     MAKE_UWORD(i->sector_number, i->sector_count)
@@ -144,7 +154,18 @@ struct IDE
 #define IDE_32BIT_XFER FALSE
 #endif
 
-#if IDE_32BIT_XFER
+#ifdef MACHINE_ROBERTS7531
+#define IDE_8BIT_XFER TRUE
+#else
+#define IDE_8BIT_XFER FALSE
+#endif
+
+#if IDE_8BIT_XFER
+  #define XFERWIDTH   UBYTE
+  #define xferswap(a)
+  #define ide_get_and_incr(src, dst) asm volatile("move.b (%1), (%0)+" : "=a"(dst): "a"(src), "0"(dst));
+  #define ide_put_and_incr(src, dst) asm volatile("move.b (%0)+, (%1)" : "=a"(src): "a"(dst), "0"(src));
+#elif IDE_32BIT_XFER
 #define XFERWIDTH   ULONG
 #define xferswap(a) swpw2(a)
 #define ide_get_and_incr(src,dst) asm volatile("move.l (%1),(%0)+" : "=a"(dst): "a"(src), "0"(dst));
@@ -187,14 +208,54 @@ struct IDE
 
 #endif
 
-
-#if CONF_ATARI_HARDWARE
+#if CONF_ATARI_HARDWARE || CONF_ATARI_IDE
 
 #ifdef MACHINE_FIREBEE
 #define NUM_IDE_INTERFACES  2
 #else
-#define NUM_IDE_INTERFACES  4   /* (e.g. stacked ST Doubler) */
+#define NUM_IDE_INTERFACES  1   /* (e.g. stacked ST Doubler) */
 #endif
+
+#if defined(MACHINE_TINY68K) || defined(MACHINE_ROBERTS7531) || defined(MACHINE_MEGA_68000) || defined(MACHINE_DDRAIG68K)
+
+struct IDE
+{
+#if IDE_8BIT_XFER
+    UBYTE filler01;
+#endif
+    XFERWIDTH data;
+//    UBYTE filler02;
+    UBYTE features; /* Read: error */
+    UBYTE filler04;
+    UBYTE sector_count;
+    UBYTE filler06;
+    UBYTE sector_number;
+    UBYTE filler08;
+    UBYTE cylinder_low;
+    UBYTE filler0A;
+    UBYTE cylinder_high;
+    UBYTE filler0C;
+    UBYTE head;
+    UBYTE filler0E;
+    UBYTE command; /* Read: status */
+    /*
+     * Tinky68K does not provide access to the alternate status and
+     * control registers. Since we don't use interrupts for IDE access,
+     * this is okay.
+     */
+};
+
+#ifdef MACHINE_TINY68K
+  #define ide_interface           ((volatile struct IDE *)0x00ffe000)
+#elif defined(MACHINE_MEGA_68000)
+  #define ide_interface           ((volatile struct IDE *)0x00AE0000)
+#elif defined(MACHINE_DDRAIG68K)
+  #define ide_interface           ((volatile struct IDE *)0xFFF7F300)
+#else
+  #define ide_interface           ((volatile struct IDE *)0x00a00000)
+#endif
+
+#else
 
 struct IDE
 {
@@ -223,6 +284,8 @@ struct IDE
 
 #define ide_interface           ((volatile struct IDE *)0xfff00000)
 
+#endif /* MACHINE_TINY68K */
+
 #else
 
 #define NUM_IDE_INTERFACES  1
@@ -244,6 +307,7 @@ struct IDE
 #define IDE_CMD_READ_MULTIPLE_EX    0x29
 #define IDE_CMD_WRITE_MULTIPLE_EX   0x39
 #define IDE_CMD_SET_MULTIPLE_MODE   0xc6
+#define IDE_CMD_SET_FEATURES        0xef
 
 #define IDE_CMD_ATAPI_PACKET    0xa0    /* ATAPI-only commands */
 #define IDE_CMD_ATAPI_IDENTIFY  0xa1
@@ -407,12 +471,16 @@ static WORD clear_multiple_mode(UWORD ifnum,UWORD dev);
 static void ide_detect_devices(UWORD ifnum);
 static LONG ata_identify(WORD dev);
 static int ide_select_device(volatile struct IDE *interface,UWORD dev);
+#if CONF_WITH_IDE_CHS
 static void set_chs_mode(WORD dev,struct IDENTIFY *identify);
+#endif
 static void set_multiple_mode(WORD dev,UWORD multi_io);
 static void set_lba48_mode(WORD dev, UWORD lba48);
 static UWORD get_start_count(volatile struct IDE *interface);
 static void set_start_count(volatile struct IDE *interface,UBYTE sector,UBYTE count);
 static int wait_for_not_BSY(volatile struct IDE *interface,LONG timeout);
+static LONG ide_nodata(UBYTE cmd,UWORD ifnum,UWORD dev,ULONG sector,UWORD count);
+
 
 #if CONF_WITH_SCSI_DRIVER
 static LONG ata_request_sense(WORD dev,WORD buflen,UBYTE *buffer);
@@ -430,7 +498,11 @@ static void set_packet_size(WORD dev,UWORD config);
  * we do not check for the FireBee, since there are always exactly
  * two interfaces, or for non-Atari hardware.
  */
+<<<<<<< HEAD
 #if CONF_ATARI_HARDWARE && !defined(MACHINE_FIREBEE) || defined MACHINE_MAXI030
+=======
+#if (CONF_ATARI_HARDWARE || CONF_ATARI_IDE) && !defined(MACHINE_FIREBEE)
+>>>>>>> dragon/wip
 
 /* used by duplicate interface detection logic */
 #define SECNUM_MAGIC    0xcc
@@ -522,7 +594,11 @@ static int ide_interface_exists(WORD ifnum, LONG timeout)
     volatile struct IDE *twisted_iface = (volatile struct IDE *)(((ULONG)ifinfo[ifnum].base_address)-1);
     enum ide_if_status regular_iface_status = IDE_IF_NOTCHECKED;
     enum ide_if_status twisted_iface_status = IDE_IF_NOTPRESENT;
+#if !defined(MACHINE_MEGA_68000) && !defined(MACHINE_DDRAIG68K)
     BOOL allow_twisted = check_read_byte((long)&twisted_iface->control);
+#else
+    BOOL allow_twisted = FALSE;
+#endif
 
     IDE_WRITE_CONTROL(regular_iface,IDE_CONTROL_nIEN);/* no interrupts please */
     if (allow_twisted) {
@@ -588,7 +664,11 @@ BOOL detect_ide(void)
     for (i = 0; i < NUM_IDE_INTERFACES; i++)
     {
         /* initialize base addresses for IDE interface */
+#ifdef MACHINE_DDRAIG68K
+        ifinfo[i].base_address = ide_interface;
+#else
         ifinfo[i].base_address = ide_interface + i;
+#endif
         ifinfo[i].twisted_cable = FALSE;
     }
 
@@ -598,7 +678,7 @@ BOOL detect_ide(void)
     has_ide = 0x01;
 #elif defined(MACHINE_FIREBEE)
     has_ide = 0x03;
-#elif CONF_ATARI_HARDWARE || defined MACHINE_MAXI030
+#elif CONF_ATARI_HARDWARE || defined MACHINE_MAXI030 || CONF_ATARI_IDE
 
     /*
      * see if the IDE registers for possible interfaces are accessible.
@@ -625,6 +705,24 @@ BOOL detect_ide(void)
     return has_ide ? TRUE : FALSE;
 }
 
+#if IDE_8BIT_XFER
+static void ide_set_8bit_mode(UWORD ifnum)
+{
+    /* must be called after ide_detect_devices */
+    volatile struct IDE *interface = ifinfo[ifnum].base_address;
+    struct IFINFO *info = ifinfo + ifnum;
+    int i;
+    for (i = 0; i < 2; i++) {
+        IDE_WRITE_HEAD(interface, IDE_DEVICE(i));
+        if (info->dev[i].type == DEVTYPE_ATA || info->dev[i].type == DEVTYPE_ATAPI) {
+            IDE_WRITE_FEATURES(interface, 0x01);
+            ide_nodata(IDE_CMD_SET_FEATURES, ifnum, i, 0, 0);
+        }
+    }
+}
+#endif
+
+
 /*
  * perform any one-time initialisation required
  *
@@ -644,7 +742,7 @@ void ide_init(void)
     if (!has_ide)
         return;
 
-#if (CONF_ATARI_HARDWARE && !defined(MACHINE_FIREBEE)) || defined MACHINE_MAXI030
+#if ((CONF_ATARI_HARDWARE || CONF_ATARI_IDE) && !defined(MACHINE_FIREBEE) || defined MACHINE_MAXI030
     /* Reject 'ghost' interfaces & detect twisted cables.
      * We wait a max time for BSY to drop on all IDE interface
      * since this is called during initialisation, which can be
@@ -661,13 +759,19 @@ void ide_init(void)
 
     /* detect devices */
     for (i = 0, bitmask = 1; i < NUM_IDE_INTERFACES; i++, bitmask <<= 1)
-        if (has_ide&bitmask)
+        if (has_ide&bitmask) {
             ide_detect_devices(i);
+#if IDE_8BIT_XFER
+            ide_set_8bit_mode(i);
+#endif
+        }
 
     /* set multiple mode for all devices that we have info for */
     for (i = 0; i < DEVICES_PER_BUS; i++)
         if (ata_identify(i) == 0) {
+#if CONF_WITH_IDE_CHS
             set_chs_mode(i,&identify);
+#endif
             set_multiple_mode(i,identify.multiple_io_info);
             set_lba48_mode(i,identify.cmds_supported[1]);
         }
@@ -710,6 +814,7 @@ static UWORD ide_device_type(WORD dev)
  * the following routines for device type detection are adapted
  * from Hale Landis's public domain ATA driver, MINDRVR.
  */
+#ifndef CONF_IDE_NO_RESET
 static int wait_for_not_BSY_and_DRDY(volatile struct IDE *interface,LONG timeout)
 {
     LONG next = hz_200 + timeout;
@@ -758,13 +863,16 @@ static UBYTE ide_decode_type(UBYTE status,UWORD signature)
 
     return DEVTYPE_UNKNOWN;
 }
+#endif /* CONF_IDE_NO_RESET */
 
 static void ide_detect_devices(UWORD ifnum)
 {
     volatile struct IDE *interface = ifinfo[ifnum].base_address;
     struct IFINFO *info = ifinfo + ifnum;
+#ifndef CONF_IDE_NO_RESET
     UBYTE status;
     UWORD signature;
+#endif
     int i;
 
     MAYBE_UNUSED(interface);
@@ -796,6 +904,17 @@ static void ide_detect_devices(UWORD ifnum)
 #endif
     }
 
+#ifdef CONF_IDE_NO_RESET
+    /* Some IDE interfaces do not provide access to the IDE device control register,
+     * so we can't use the logic below that does a software reset.
+     * As a hack, we just force the dev type for all detected interfaces.
+     */
+    for (i = 0; i < 2; i++) {
+        if (info->dev[i].type == DEVTYPE_UNKNOWN) { // device was detected
+            info->dev[i].type = DEVTYPE_ATA; // Force it to ATA.
+        }
+    }
+#else
     /* recheck after soft reset, also detect ata/atapi */
     ide_select_device(interface,0);
     ide_reset(ifnum);
@@ -808,7 +927,7 @@ static void ide_detect_devices(UWORD ifnum)
             info->dev[i].type = ide_decode_type(status,signature);
         }
     }
-
+#endif
     for (i = 0; i < 2; i++)
         KDEBUG(("IDE i/f %d device %d is type %d\n",ifnum,i,info->dev[i].type));
 }
@@ -1032,10 +1151,12 @@ static void ide_get_data(volatile struct IDE *interface,UBYTE *buffer,ULONG buff
 {
     XFERWIDTH *p = (XFERWIDTH *)buffer;
     XFERWIDTH *end;
-    UWORD *p2;
-    UWORD *end2 = (UWORD *)(buffer + bufferlen);
+    XFERWIDTH *p2;
+    XFERWIDTH *end2 = (XFERWIDTH *)(buffer + bufferlen);
 
-    KDEBUG(("ide_get_data(%p, %p, %lu, %d)\n", interface, buffer, bufferlen, need_byteswap));
+    KDEBUG(("ide_get_data(intf=%p, buf=%p, len=%lu, need_byteswap=%d)\n", interface, buffer, bufferlen, need_byteswap));
+
+    DELAY_400NS; /* Added by STEVE CROMPTON 19/04/2025 - Fix for Mega-68030 SBC-3 @ 40MHz */
 
 #if CONF_WITH_APOLLO_68080
     if (is_apollo_68080)
@@ -1069,9 +1190,9 @@ static void ide_get_data(volatile struct IDE *interface,UBYTE *buffer,ULONG buff
         }
 
         /* transfer remainder 2 bytes at a time */
-        p2 = (UWORD *)p;
+        p2 = (XFERWIDTH *)p;
         while (p2 < end2) {
-            UWORD temp;
+            XFERWIDTH temp;
 
             temp = *(UWORD_ALIAS *)&interface->data;
             swpw(temp);
@@ -1079,7 +1200,11 @@ static void ide_get_data(volatile struct IDE *interface,UBYTE *buffer,ULONG buff
         }
     } else {
         end = (XFERWIDTH *)(buffer + (bufferlen & ~(64-1)));    /* mask must match unrolled loop */
+#if IDE_8BIT_XFER
+        XFERWIDTH *q = p;
+#endif
         while (p < end) {
+
             /* Unroll the loop 16 times, transferring 32/64 bytes in a row.
              * Note that the pointer p gets incremented implicitly.
              */
@@ -1103,11 +1228,24 @@ static void ide_get_data(volatile struct IDE *interface,UBYTE *buffer,ULONG buff
             ide_get_and_incr(&(interface->data), p);
             ide_get_and_incr(&(interface->data), p);
         }
+#if IDE_8BIT_XFER
+        /* transfer remainder 1 byte at a time. */
+        p2 = (XFERWIDTH *) p;
+        while (p2 < end2) {
+            *p2++ = *(UBYTE_ALIAS *)&interface->data;
+        }
+#else
         /* transfer remainder 2 bytes at a time */
         p2 = (UWORD *)p;
         while (p2 < end2) {
             *p2++ = *(UWORD_ALIAS *)&interface->data;
         }
+#endif
+#if IDE_8BIT_XFER
+        KDEBUG(("Before byteswap, bytes are 0x%02x, 0x%02x\n", buffer[510], buffer[511]));
+        byteswap(q, 512);
+        KDEBUG(("After byteswap, bytes are 0x%02x, 0x%02x\n", buffer[510], buffer[511]));
+#endif
     }
 }
 
@@ -1216,8 +1354,8 @@ static void ide_put_data(volatile struct IDE *interface,UBYTE *buffer,ULONG buff
 {
     XFERWIDTH *p = (XFERWIDTH *)buffer;
     XFERWIDTH *end;
-    UWORD *p2;
-    UWORD *end2 = (UWORD *)(buffer + bufferlen);
+    XFERWIDTH *p2;
+    XFERWIDTH *end2 = (XFERWIDTH *)(buffer + bufferlen);
 
     if (need_byteswap) {
         end = (XFERWIDTH *)(buffer + (bufferlen & ~(16-1)));    /* mask must match unrolled loop */
@@ -1243,9 +1381,9 @@ static void ide_put_data(volatile struct IDE *interface,UBYTE *buffer,ULONG buff
         }
 
         /* transfer remainder 2 bytes at a time */
-        p2 = (UWORD *)p;
+        p2 = (XFERWIDTH *)p;
         while (p2 < end2) {
-            UWORD temp;
+            XFERWIDTH temp;
 
             temp = *p2++;
             swpw(temp);
@@ -1253,6 +1391,9 @@ static void ide_put_data(volatile struct IDE *interface,UBYTE *buffer,ULONG buff
         }
     } else {
         end = (XFERWIDTH *)(buffer + (bufferlen & ~(64-1)));    /* mask must match unrolled loop */
+#if IDE_8BIT_XFER
+        byteswap(p, 16);
+#endif
         while (p < end) {
             /* Unroll the loop 16 times, transferring 32/64 bytes in a row.
              * Note that the pointer p gets incremented implicitly.
@@ -1277,11 +1418,19 @@ static void ide_put_data(volatile struct IDE *interface,UBYTE *buffer,ULONG buff
             ide_put_and_incr(p, &(interface->data));
             ide_put_and_incr(p, &(interface->data));
         }
+#if IDE_8BIT_XFER
+        /* transfer remainder 1 byte at a time */
+        p2 = (UBYTE *)p;
+        while (p2 < end2) {
+            *(UBYTE_ALIAS *)&interface->data = *p2++;
+        }
+#else
         /* transfer remainder 2 bytes at a time */
-        p2 = (UWORD *)p;
+        p2 = (XFERWIDTH *)p;
         while (p2 < end2) {
             *(UWORD_ALIAS *)&interface->data = *p2++;
         }
+#endif
     }
 }
 
@@ -1433,6 +1582,7 @@ LONG ide_rw(WORD rw,ULONG sector,UWORD count,UBYTE *buf,WORD dev,BOOL need_bytes
     return E_OK;
 }
 
+#if CONF_WITH_IDE_CHS
 static void set_chs_mode(WORD dev,struct IDENTIFY *identify)
 {
     UWORD ifnum, ifdev;
@@ -1466,6 +1616,7 @@ static void set_chs_mode(WORD dev,struct IDENTIFY *identify)
      */
     ide_nodata(IDE_CMD_INIT_DEV_PARAMS,ifnum,ifdev,(info->heads-1)*info->sectors,info->sectors);
 }
+#endif
 
 static void set_lba48_mode(WORD dev, UWORD lba48)
 {

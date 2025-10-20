@@ -15,7 +15,7 @@
 
 #include "iorec.h"
 
-#define BCONMAP_AVAILABLE (CONF_WITH_SCC || CONF_WITH_TT_MFP)
+#define BCONMAP_AVAILABLE (CONF_WITH_SCC || CONF_WITH_TT_MFP || CONF_WITH_DUART)
 
 /*
  * baud rate codes
@@ -36,6 +36,13 @@
 #define B110   13
 #define B75    14
 #define B50    15
+
+#define B230400 10
+#define B115200 11
+#define B57600  12
+#define B38400  13
+#define B153600 14
+#define B78600  15
 
 #define MIN_BAUDRATE_CODE   B19200
 #define MAX_BAUDRATE_CODE   B50
@@ -79,7 +86,7 @@ LONG bcostat1(void);
 LONG bconout1(WORD,WORD);
 ULONG rsconf1(WORD baud, WORD ctrl, WORD ucr, WORD rsr, WORD tsr, WORD scr);
 void init_serport(void);
-void push_serial_iorec(UBYTE data);
+void push_serial_iorec(IOREC *iorec, UBYTE data);
 
 #if CONF_WITH_SCC
 void scc_init(void);
@@ -97,6 +104,16 @@ void mfp_rs232_tx_interrupt_handler(void);
 #if CONF_WITH_TT_MFP
 void mfp_tt_rx_interrupt_handler(void);
 void mfp_tt_tx_interrupt_handler(void);
+#endif
+
+#if CONF_WITH_DUART
+#if CONF_WITH_DUART_CHANNEL_B
+LONG bconoutDUARTB(WORD, WORD);
+void duart_rs232_interrupt_handler_channel_b(void);
+#endif
+void duart_rs232_enable_interrupt(void);
+void duart_rs232_interrupt_handler_channel_a(void);
+void duart_init_system_timer(void);
 #endif
 
 #if BCONMAP_AVAILABLE

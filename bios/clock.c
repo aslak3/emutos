@@ -13,7 +13,7 @@
  * option any later version.  See doc/license.txt for details.
  */
 
-/* #define ENABLE_KDEBUG */
+ /* #define ENABLE_KDEBUG */
 
 #include "emutos.h"
 #include "clock.h"
@@ -36,7 +36,7 @@
 #include "disk.h"
 #include "acsi.h"
 
-#if (CONF_WITH_MONSTER || CONF_WITH_IKBD_CLOCK)
+#if (CONF_WITH_MONSTER || CONF_WITH_IKBD_CLOCK || CONF_WITH_MFP_DS3231)
 static UBYTE int2bcd(UWORD a)
 {
     return (a % 10) + ((a / 10) << 4);
@@ -48,7 +48,7 @@ static UWORD bcd2int(UBYTE a)
 }
 #endif
 
-#if (CONF_WITH_ICDRTC || CONF_WITH_MONSTER || CONF_WITH_MEGARTC || CONF_WITH_NVRAM || CONF_WITH_IKBD_CLOCK || CONF_WITH_ULTRASATAN_CLOCK)
+#if (CONF_WITH_ICDRTC || CONF_WITH_MONSTER || CONF_WITH_MEGARTC || CONF_WITH_NVRAM || CONF_WITH_IKBD_CLOCK || CONF_WITH_ULTRASATAN_CLOCK || CONF_WITH_MFP_DS3231 || MACHINE_DDRAIG68K)
 /*
  * structures used by extract_date(), extract_time()
  */
@@ -366,6 +366,109 @@ static void icdsetdt(ULONG dt)
 
 #endif /* CONF_WITH_ICDRTC */
 
+#if CONF_WITH_MFP_DS3231
+
+static inline void set_gpio_as_output(UBYTE num)
+{
+    MFP *mfp = MFP_BASE;
+    mfp->ddr |= (1 << num);
+}
+
+static inline void set_gpio_as_input(UBYTE num)
+{
+    MFP *mfp = MFP_BASE;
+    mfp->ddr &= ~(1 << num);
+}
+
+static inline void set_gpio(UBYTE num)
+{
+    MFP *mfp = MFP_BASE;
+    set_gpio_as_output(num);
+    mfp->gpip |= (1 << num);
+}
+
+static inline void clear_gpio(UBYTE num)
+{
+    MFP *mfp = MFP_BASE;
+    set_gpio_as_output(num);
+    mfp->gpip &= ~(1 << num);
+}
+
+static inline UBYTE read_gpio(UBYTE num)
+{
+MFP *mfp = MFP_BASE;
+set_gpio_as_input(num);
+return (mfp->gpip >> num) & 1;
+}
+
+#define SCL_GPIO 3
+#define SDA_GPIO 5
+
+static ULONG delay5us;
+#define DELAY5US delay_loop(delay5us)
+
+static void i2c_start(void)
+{
+    set_gpio(SDA_GPIO);
+
+    set_gpio(SCL_GPIO);
+
+    clear_gpio(SDA_GPIO);
+
+    clear_gpio(SCL_GPIO);
+}
+
+static void i2c_stop (void)
+{
+    clear_gpio(SCL_GPIO);
+    clear_gpio(SDA_GPIO);
+    set_gpio(SCL_GPIO);
+    DELAY5US;
+    set_gpio(SDA_GPIO);
+}
+
+static void i2c_write (UBYTE data)
+{
+    UBYTE i;
+
+    for(i = 0; i < 8; i++)
+    {
+	if (data & 0x80) set_gpio(SDA_GPIO); else clear_gpio(SDA_GPIO);
+	data <<= 1;
+	set_gpio(SCL_GPIO);
+	DELAY5US;
+	clear_gpio(SCL_GPIO);
+    }
+    /* Set SDA (MFP GPIO5) as input to receive ack. */
+    set_gpio_as_input(SDA_GPIO);
+    set_gpio(SCL_GPIO);
+    DELAY5US;
+    clear_gpio(SCL_GPIO);
+}
+
+static UBYTE i2c_read (void)
+{
+    UBYTE i, data = 0;
+    MFP *mfp = MFP_BASE;
+
+    /* Set SCL as output, SDA as input */
+    //set_gpio_as_output(SCL_GPIO);
+    set_gpio_as_input(SDA_GPIO);
+
+    for(i = 0; i < 8; i++)
+    {
+	data <<= 1;
+	set_gpio(SCL_GPIO);
+	UBYTE bit = mfp->gpip >> SDA_GPIO;
+	data |= (bit & 1);
+	DELAY5US;
+	clear_gpio(SCL_GPIO);
+    }
+    return data;
+}
+
+#endif /* CONF_WITH_MFP_DS321 */
+
 #if CONF_WITH_MONSTER
 
 /*==== MonSTer RTC section ================================================*/
@@ -444,6 +547,16 @@ static UBYTE i2c_read (void)
 
     return data;
 }
+
+#endif
+
+#if (CONF_WITH_MONSTER || CONF_WITH_MFP_DS3231)
+
+/*
+ * We reuse these DS1307 Monster support routines for the DS3231
+ * that might be connected to the MFP since it is compatible with the
+ * DS1307.
+ */
 
 static void write_ds1307(UBYTE address, UBYTE data)
 {
@@ -544,7 +657,7 @@ void detect_monster_rtc(void)
     }
 }
 
-#endif /* CONF_WITH_MONSTER */
+#endif /* CONF_WITH_MONSTER || CONF_WITH_MFP_DS3231 */
 
 #if CONF_WITH_MEGARTC
 
@@ -1199,6 +1312,12 @@ void clock_init(void)
     {
         /* Nothing to initialize */
     }
+#ifdef MACHINE_DDRAIG68K
+    else if (TRUE)
+    {
+        return detect_ddraig_rtc();
+    }
+#endif
 #if CONF_WITH_IKBD_CLOCK
     else
     {
@@ -1237,7 +1356,7 @@ void settime(LONG time)
         msetdt(time);
     }
 #endif /* CONF_WITH_MEGARTC */
-#if CONF_WITH_MONSTER
+#if (CONF_WITH_MONSTER || CONF_WITH_MFP_DS3231)
     else if (has_monster_rtc)
     {
         monstersetdt(time);
@@ -1255,6 +1374,12 @@ void settime(LONG time)
         ultrasatan_setdt(time);
     }
 #endif /* CONF_WITH_ULTRASATAN_CLOCK */
+#if defined(MACHINE_DDRAIG68K)
+    else if (TRUE)
+    {
+        rtc_ddraig_setdt(time);
+    }
+#endif
     else
     {
 #if CONF_WITH_IKBD_CLOCK
@@ -1293,7 +1418,7 @@ LONG gettime(void)
         return mgetdt();
     }
 #endif /* CONF_WITH_MEGARTC */
-#if CONF_WITH_MONSTER
+#if (CONF_WITH_MONSTER || CONF_WITH_MFP_DS3231)
     else if (has_monster_rtc)
     {
         return monstergetdt();
@@ -1311,6 +1436,12 @@ LONG gettime(void)
         return ultrasatan_getdt();
     }
 #endif /* CONF_WITH_ULTRASATAN_CLOCK */
+#if defined(MACHINE_DDRAIG68K)
+    else if (TRUE)
+    {
+        return rtc_ddraig_getdt();
+    }
+#endif
     else
     {
 #if CONF_WITH_IKBD_CLOCK
@@ -1320,3 +1451,139 @@ LONG gettime(void)
 #endif /* CONF_WITH_IKBD_CLOCK */
     }
 }
+
+#ifdef MACHINE_DDRAIG68K
+
+#define RTC_BASE            0x00F7F400       // Base address of the RTC72421 clock controller
+#define RTC_READ(x)         (*((volatile UBYTE *) RTC_BASE + (x) ))
+#define RTC_WRITE(x, y)     (*((UBYTE *) RTC_BASE + (x) ) = (y))
+
+#define RTC_SECOND1         0
+#define RTC_SECOND10        2
+#define RTC_MINUTE1         4
+#define RTC_MINUTE10        6
+#define RTC_HOUR1           8
+#define RTC_HOUR10          10
+#define RTC_DAY1            12
+#define RTC_DAY10           14
+#define RTC_MONTH1          16
+#define RTC_MONTH10         18
+#define RTC_YEAR1           20
+#define RTC_YEAR10          22
+#define RTC_DOW             24 /* Day of week */
+#define RTC_CONTROL_D       26 /* Control register D */
+#define RTC_CONTROL_E       28 /* Control register E */
+#define RTC_CONTROL_F       30 /* Control register F */
+
+
+void detect_ddraig_rtc(void)
+{
+    RTC_WRITE(RTC_CONTROL_F, 4);
+    RTC_WRITE(RTC_CONTROL_E, 0);
+    RTC_WRITE(RTC_CONTROL_D, 4);
+}
+
+static void rtc_ddraig_delay(ULONG d)
+{
+    volatile ULONG wait = d;
+    while (wait--);
+}
+
+static UBYTE rtc_ddraig_read_register(UBYTE reg)
+{
+    RTC_WRITE(RTC_CONTROL_D, 1); // No interrupts, HOLD Bit=1
+    UBYTE status = RTC_READ(RTC_CONTROL_D);
+    UBYTE data = 0;
+
+    while (status & 2)
+    {
+        RTC_WRITE(RTC_CONTROL_D, 0); // No interrupts, HOLD Bit=0
+        rtc_ddraig_delay(10);
+        RTC_WRITE(RTC_CONTROL_D, 1); // No interrupts, HOLD Bit=1
+        status = RTC_READ(RTC_CONTROL_D);
+    }
+    data = RTC_READ(reg);
+    RTC_WRITE(RTC_CONTROL_D, 0);
+
+    return data;
+}
+
+static void rtc_ddraig_write_register(UBYTE reg, UBYTE data)
+{
+    RTC_WRITE(RTC_CONTROL_D, 1); // No interrupts, HOLD Bit=1
+    UBYTE status = RTC_READ(RTC_CONTROL_D);
+
+    while (status & 2)
+    {
+        RTC_WRITE(RTC_CONTROL_D, 0); // No interrupts, HOLD Bit=0
+        rtc_ddraig_delay(10);
+        RTC_WRITE(RTC_CONTROL_D, 1); // No interrupts, HOLD Bit=1
+        status = RTC_READ(RTC_CONTROL_D);
+    }
+    data = RTC_WRITE(reg, data);
+    RTC_WRITE(RTC_CONTROL_D, 0);
+}
+
+void rtc_ddraig_setdt(LONG dt)
+{
+    struct ymd date;
+    struct hms time;
+
+    extract_date(&date, HIWORD(dt));
+    extract_time(&time, LOWORD(dt));
+
+    KDEBUG(("rtc_ddraig_setdt(): new date/time %02d-%02d-%02d %02d:%02d:%02d\n", date.year - 20, date.month, date.day, time.hour, time.minute, time.second));
+    KDEBUG(("rtc_ddraig_setdt(): setting clock\n"));
+
+    rtc_ddraig_write_register(RTC_YEAR10,   (date.year - 20) / 10);
+	rtc_ddraig_write_register(RTC_YEAR1,    (date.year - 20) % 10);
+    rtc_ddraig_write_register(RTC_MONTH10,  date.month / 10);
+	rtc_ddraig_write_register(RTC_MONTH1,   date.month % 10);
+    rtc_ddraig_write_register(RTC_DAY10,    date.day / 10);
+	rtc_ddraig_write_register(RTC_DAY1,     date.day % 10);
+
+    // set time
+    rtc_ddraig_write_register(RTC_HOUR10,   time.hour / 10);
+	rtc_ddraig_write_register(RTC_HOUR1,    time.hour % 10);
+    rtc_ddraig_write_register(RTC_MINUTE10, time.minute / 10);
+	rtc_ddraig_write_register(RTC_MINUTE1,  time.minute % 10);
+    rtc_ddraig_write_register(RTC_SECOND10, time.second / 10);
+	rtc_ddraig_write_register(RTC_SECOND1,  time.second % 10);
+
+    return;
+}
+
+LONG rtc_ddraig_getdt(void)
+{
+    UBYTE hour, minute, second, day, month;
+    UWORD year, date, time;
+
+    UBYTE h1    = rtc_ddraig_read_register(RTC_HOUR1) & 0x0F;
+    UBYTE h10   = rtc_ddraig_read_register(RTC_HOUR10) & 0x0F;
+    UBYTE mi1   = rtc_ddraig_read_register(RTC_MINUTE1) & 0x0F;
+    UBYTE mi10  = rtc_ddraig_read_register(RTC_MINUTE10) & 0x0F;
+    UBYTE s1    = rtc_ddraig_read_register(RTC_SECOND1) & 0x0F;
+    UBYTE s10   = rtc_ddraig_read_register(RTC_SECOND10) & 0x0F;
+    UBYTE d1    = rtc_ddraig_read_register(RTC_DAY1) & 0x0F;
+    UBYTE d10   = rtc_ddraig_read_register(RTC_DAY10) & 0x0F;
+    UBYTE mo1   = rtc_ddraig_read_register(RTC_MONTH1) & 0x0F;
+    UBYTE mo10  = rtc_ddraig_read_register(RTC_MONTH10) & 0x0F;
+    UBYTE y1    = rtc_ddraig_read_register(RTC_YEAR1) & 0x0F;
+    UBYTE y10   = rtc_ddraig_read_register(RTC_YEAR10) & 0x0F;
+
+    hour = (h10 * 10) + h1;
+    minute = (mi10 * 10) + mi1;
+    second = (s10 * 10) + s1;
+    day = (d10 * 10) + d1;
+    month = (mo10 * 10) + mo1;
+    year = (y10 * 10) + y1;
+
+    KDEBUG(("rtc_ddraig_getdt(): read clock value %02d-%02d-%02d %02d:%02d:%02d\n", year, month, day, hour, minute, second));
+
+    date = (year + 20) << 9 | (month & 0xf) << 5 | (day & 0x1f);
+    time = (hour << 11) | (minute << 5) | (second >> 1);
+
+    return MAKE_ULONG(date, time);
+}
+
+#endif

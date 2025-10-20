@@ -142,7 +142,7 @@ endif
 #
 
 # Include the AES and EmuDesk
-WITH_AES=1
+WITH_AES=0
 
 # Include EmuCON
 WITH_CLI=1
@@ -305,7 +305,7 @@ bios_src +=  memory.S processor.S vectors.S aciavecs.S bios.c xbios.c acsi.c \
              mfp.c midi.c mouse.c natfeat.S natfeats.c nvram.c panicasm.S \
              parport.c screen.c serport.c sound.c videl.c vt52.c xhdi.c \
              pmmu030.c 68040_pmmu.S \
-             amiga.c amiga2.S spi_vamp.c \
+             amiga.c amiga2.S spi_vamp.c spi_duart.S \
              lisa.c lisa2.S \
              delay.c delayasm.S sd.c memory2.c bootparams.c scsi.c nova.c \
              dsp.c dsp2.S \
@@ -792,6 +792,8 @@ m548x-bas:
 	$(MAKE) COLDFIRE=1 CPUFLAGS='$(CPUFLAGS)' DEF='$(DEF)' UNIQUE=$(UNIQUE) LMA=0xe0100000 SRECFILE=$(SREC_M548X_BAS) $(SREC_M548X_BAS) REF_OS=TOS404
 	@printf "$(LOCALCONFINFO)"
 
+include Makefile_sbc.mk
+
 #
 # Special variants of EmuTOS running in RAM instead of ROM.
 # In this case, emutos.img needs to be loaded into RAM by some loader.
@@ -1237,7 +1239,7 @@ obj/header.h: tools/mkheader.awk obj/country version.mk
 TOCLEAN += obj/*.o
 
 CFILE_FLAGS = $(strip $(CFLAGS))
-SFILE_FLAGS = $(strip $(CFLAGS))
+SFILE_FLAGS = $(strip $(CFLAGS)) -Wa,--bitwise-or
 
 ifeq (1,$(LTO))
 # Files in the NOLTO list below will not be compiled using LTO.

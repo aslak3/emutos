@@ -25,9 +25,16 @@ void detect_megartc(void);
 void detect_icdrtc(void);
 #endif /* CONF_WITH_ICDRTC */
 
-#if CONF_WITH_MONSTER
+#if (CONF_WITH_MONSTER || CONF_WITH_MFP_DS3231)
 void detect_monster_rtc(void);
 #endif /* CONF_WITH_MONSTER */
+
+#if defined(MACHINE_DDRAIG68K)
+void detect_ddraig_rtc(void);
+void rtc_ddraig_setdt(LONG dt);
+LONG rtc_ddraig_getdt(void);
+#endif
+
 
 /* internal init */
 
@@ -37,5 +44,6 @@ void clock_init(void);
 
 void settime(LONG time);
 LONG gettime(void);
+
 
 #endif /* CLOCK_H */

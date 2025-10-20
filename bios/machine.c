@@ -36,6 +36,7 @@
 #include "delay.h"
 #include "mfp.h"
 #include "scc.h"
+#include "duart68681.h"
 #include "memory.h"
 #include "coldfire.h"
 #include "dma.h"
@@ -196,6 +197,24 @@ static void detect_scc(void)
 }
 
 #endif /* CONF_WITH_SCC */
+
+#if CONF_WITH_DUART
+
+int has_duart;
+
+/*
+ * detect DUART (ColdFire)
+ */
+static void detect_duart(void)
+{
+    has_duart = 0;
+    if (check_read_byte(DUART_BASE+DUART_MRA))
+        has_duart = 1;
+
+    KDEBUG(("has_duart = %d\n", has_duart));
+}
+
+#endif /* CONF_WITH_DUART */
 
 #if CONF_WITH_VME
 
@@ -397,6 +416,14 @@ static void setvalue_mch(void)
     }
     else
         cookie_mch = MCH_ST;
+#elif defined(MACHINE_TINY68K)
+    cookie_mch = MCH_TINY68K;
+#elif defined(MACHINE_BITSY_V1) || defined(MACHINE_BITSY_V1_SERIAL)
+    cookie_mch = MCH_BITSY_V1;
+#elif defined(MACHINE_ROBERTS7531)
+    cookie_mch = MCH_ROBERTS7531;
+#elif defined(MACHINE_DDRAIG68K)
+    cookie_mch = MCH_DDRAIG68K;
 #else
     cookie_mch = MCH_NOHARD;
 #endif /* CONF_ATARI_HARDWARE */
@@ -569,6 +596,10 @@ void machine_detect(void)
     if (!IS_ARANYM)
         detect_scc();
 #endif
+#if CONF_WITH_DUART
+    if (!IS_ARANYM)
+        detect_duart();
+#endif
 #if CONF_WITH_VME
     if (!IS_ARANYM)
         detect_vme();
@@ -608,6 +639,10 @@ void machine_detect(void)
         detect_monster_rtc();
         KDEBUG(("has_monster_rtc = %d\n", has_monster_rtc));
     }
+#endif
+#if CONF_WITH_MFP_DS3231
+    detect_monster_rtc();
+    KDEBUG(("has_monster_rtc (MFP DS3231) = %d\n", has_monster_rtc));
 #endif
 #if CONF_WITH_MAGNUM
     detect_magnum();
@@ -659,6 +694,12 @@ void machine_init(void)
         delay_loop(loops);
     }
  #endif
+
+ #if CONF_WITH_DUART
+    if (has_duart) init_duart();
+
+ #endif /* CONF_WITH_DUART */
+
 #endif /* CONF_WITH_RESET */
 }
 
@@ -818,6 +859,16 @@ static const char * guess_machine_name(void)
         return "Atari TT";
     case MCH_FALCON:
         return "Atari Falcon";
+    case MCH_TINY68K:
+        return "Tiny68K Rev 2";
+    case MCH_BITSY_V1:
+        return "BITSY V1";
+    case MCH_ROBERTS7531:
+        return "@ROBERTS7531";
+    case MCH_MEGA_68000:
+        return "MEGA 68000";
+    case MCH_DDRAIG68K:
+        return "DDRAIG68K";
     default:
         return "unknown";
     }
@@ -836,6 +887,16 @@ const char * machine_name(void)
     return m548x_machine_name();
 #elif defined(MACHINE_MAXI030)
     return "MAXI030";
+#elif defined(MACHINE_ROSCO_V2)
+    return "ROSCO M68K Classic V2";
+#elif defined(MACHINE_ROBERTS_7531)
+    return "@ROBERTS7531 V1";
+#elif defined(MACHINE_MEGA_68000)
+    return "MEGA 68000";
+#elif defined(MACHINE_TINY68K)
+    return "Tiny68K";
+#elif defined(MACHINE_DDRAIG68K)
+    return "DDRAIG68K";
 #else
     return guess_machine_name();
 #endif

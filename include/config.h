@@ -668,6 +668,14 @@
 # endif
 #endif
 
+#include "config_tiny68k.h"
+#include "config_rosco_v2.h"
+#include "config_bitsy_v1.h"
+#include "config_bitsy_v1_sercon_1mb.h"
+#include "config_roberts7531.h"
+#include "config_mega-68000.h"
+#include "config_ddraig68k.h"
+
 /*
  * Defaults for the MAXI030 machine
  */
@@ -988,6 +996,21 @@
 #endif
 
 /*
+ * Set CONF_WITH_MFP_3X_CLOCK if the MFP is using a 7.378 MHz serial clock.
+ */
+#ifndef CONF_WITH_MFP_3X_CLOCK
+# define CONF_WITH_MFP_3X_CLOCK 0
+#endif
+
+/*
+ * Set CONF_WITH_EARLY_MFP to 1 to initialize the MFP "early" in the
+ * start up code.
+ */
+#ifndef CONF_WITH_EARLY_MFP
+# define CONF_WITH_EARLY_MFP 0
+#endif
+
+/*
  * Set CONF_WITH_MFP_RS232 to 1 to enable MFP RS-232 support
  */
 #ifndef CONF_WITH_MFP_RS232
@@ -1002,10 +1025,57 @@
 #endif
 
 /*
+ * Set CONF_WITH_MFP_DS3231 to enable support of a DS3231
+ * I2C real time clock chip that is bit-banged from a couple
+ * of MFP GPIO pins.
+ */
+#ifndef CONF_WITH_MFP_DS3231
+# define CONF_WITH_MFP_DS3231 0
+#endif
+
+/*
  * Set CONF_WITH_SCC to 1 to enable SCC support
  */
 #ifndef CONF_WITH_SCC
 # define CONF_WITH_SCC 1
+#endif
+
+/*
+ * Set CONF_WITH_DUART to 1 to enable support for the MC68681 Dual UART
+ */
+#ifndef CONF_WITH_DUART
+# define CONF_WITH_DUART 0
+#endif
+
+/*
+ * Set base address of DUART. Coldfire uses 0xFFFF8600
+ */
+#ifndef DUART_BASE
+# define DUART_BASE 0xFFFF8600UL
+#endif
+
+/*
+ * Set CONF_WITH_DUART_CHANNEL_B to 1 to enable the second port on
+ * the MC68681. ColdFile UARTS are a subset of the MC68681 and don't
+ * support the second channel.
+ */
+#ifndef CONF_WITH_DUART_CHANNEL_B
+# define CONF_WITH_DUART_CHANNEL_B 0
+#endif
+
+/*
+ * Set CONF_WITH_DUART_EXTENDED_BAUD_RATES to enable the extended baud
+ * rates available on the XR68C681 DUART.
+ */
+#ifndef CONF_WITH_DUART_EXTENDED_BAUD_RATES
+# define CONF_WITH_DUART_EXTENDED_BAUD_RATES 0
+#endif
+/*
+ * Set CONF_DUART_TIMER_C to 1 to simulate Timer C using the
+ * timer available on the MC68681 DUART.
+ */
+#ifndef CONF_DUART_TIMER_C
+# define CONF_DUART_TIMER_C 0
 #endif
 
 /*
@@ -1050,6 +1120,7 @@
  */
 #ifndef CONF_WITH_MIDI_ACIA
 # define CONF_WITH_MIDI_ACIA 1
+# define ACIA_MIDI_BASE (0xfffffc04L)
 #endif
 
 /*
@@ -1057,6 +1128,7 @@
  */
 #ifndef CONF_WITH_IKBD_ACIA
 # define CONF_WITH_IKBD_ACIA 1
+# define ACIA_IKBD_BASE (0xfffffc00L)
 #endif
 
 /*
@@ -1064,6 +1136,21 @@
  */
 #ifndef CONF_WITH_IKBD_CLOCK
 # define CONF_WITH_IKBD_CLOCK 1
+#endif
+
+/*
+ * Set CONF_WITH_IKBD_ACE to 1 to enable IKBD ACE (16C550) support.
+ */
+#ifndef CONF_WITH_IKBD_ACE
+# define CONF_WITH_IKBD_ACE 0
+#endif
+
+/*
+ * Set CONF_WITH_IKBD_DUART to 1 to enable IKBD support via
+ * Channel B of the MC68681 DUART.
+ */
+#ifndef CONF_WITH_IKBD_DUART
+# define CONF_WITH_IKBD_DUART 0
 #endif
 
 /*
@@ -1120,6 +1207,14 @@
  */
 #ifndef CONF_WITH_VAMPIRE_SPI
 # define CONF_WITH_VAMPIRE_SPI 0
+#endif
+
+/*
+ * Set CONF_WITH_VBL_RTE to 1 to cause the VBL handler to end with an RTE
+ * instruction instead of an RTS instruction.
+ */
+#ifndef CONF_WITH_VBL_RTE
+# define CONF_WITH_VBL_RTE 0
 #endif
 
 /*
@@ -1276,6 +1371,13 @@
 # endif
 #endif
 
+/*
+ * Set CONF_WITH_XOSERA_CONSOLE to 1 to enable the EmuTOS console
+ * to display on the Xosera video card.
+ */
+#ifndef CONF_WITH_XOSERA_CONSOLE
+# define CONF_WITH_XOSERA_CONSOLE 0
+#endif
 
 
 /****************************************************
@@ -2026,6 +2128,15 @@
 #endif
 
 /*
+ * Set DUART_DEBUG_PRINT to 1 to redirect debug prints to the DUART portB RS232
+ * out.
+ */
+
+#ifndef DUART_DEBUG_PRINT
+# define DUART_DEBUG_PRINT 0
+#endif
+
+/*
  * Set COLDFIRE_DEBUG_PRINT to 1 to redirect debug prints to the ColdFire serial port
  */
 #ifndef COLDFIRE_DEBUG_PRINT
@@ -2063,7 +2174,7 @@
 
 
 /* Determine if kprintf() is available */
-#if CONF_WITH_UAE || DETECT_NATIVE_FEATURES || STONX_NATIVE_PRINT || CONSOLE_DEBUG_PRINT || RS232_DEBUG_PRINT || SCC_DEBUG_PRINT || COLDFIRE_DEBUG_PRINT || MIDI_DEBUG_PRINT || CARTRIDGE_DEBUG_PRINT
+#if CONF_WITH_UAE || DETECT_NATIVE_FEATURES || STONX_NATIVE_PRINT || CONSOLE_DEBUG_PRINT || RS232_DEBUG_PRINT || SCC_DEBUG_PRINT || DUART_DEBUG_PRINT || COLDFIRE_DEBUG_PRINT || MIDI_DEBUG_PRINT || CARTRIDGE_DEBUG_PRINT
 #  define HAS_KPRINTF 1
 # else
 #  define HAS_KPRINTF 0
@@ -2243,7 +2354,7 @@
 # endif
 #endif
 
-#if !CONF_WITH_VIDEL
+#if !CONF_WITH_VIDEL && !CONF_WITH_DDRAIG_VGA
 # if CONF_WITH_VDI_16BIT
 #  error CONF_WITH_VDI_16BIT requires CONF_WITH_VIDEL
 # endif
@@ -2265,8 +2376,14 @@
 # endif
 #endif
 
-#if (CONSOLE_DEBUG_PRINT + RS232_DEBUG_PRINT + SCC_DEBUG_PRINT + COLDFIRE_DEBUG_PRINT + MIDI_DEBUG_PRINT + CARTRIDGE_DEBUG_PRINT) > 1
-# error Only one of CONSOLE_DEBUG_PRINT, RS232_DEBUG_PRINT, SCC_DEBUG_PRINT, COLDFIRE_DEBUG_PRINT, MIDI_DEBUG_PRINT or CARTRIDGE_DEBUG_PRINT must be set to 1.
+#if !CONF_WITH_DUART_CHANNEL_B
+# if DUART_DEBUG_PRINT
+#  error DUART_DEBUG_PRINT requires CONF_WITH_DUART_CHANNEL_B
+# endif
+#endif
+
+#if (CONSOLE_DEBUG_PRINT + RS232_DEBUG_PRINT + SCC_DEBUG_PRINT + DUART_DEBUG_PRINT + COLDFIRE_DEBUG_PRINT + MIDI_DEBUG_PRINT + CARTRIDGE_DEBUG_PRINT) > 1
+# error Only one of CONSOLE_DEBUG_PRINT, RS232_DEBUG_PRINT, SCC_DEBUG_PRINT, COLDFIRE_DEBUG_PRINT or MIDI_DEBUG_PRINT must be set to 1.
 #endif
 
 

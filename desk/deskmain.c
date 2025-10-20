@@ -45,7 +45,11 @@
 #include "biosdefs.h"
 #include "nls.h"
 #include "version.h"
-#include "../obj/header.h"
+#ifdef WITH_CMAKE
+  #include "header.h"
+#else
+  #include "../obj/header.h"
+#endif
 
 #include "aesbind.h"
 #include "desksupp.h"
@@ -902,7 +906,7 @@ static WORD do_optnmenu(WORD item)
                 {
                     /* Dummy case for conditional compilation */
                 }
-#if CONF_WITH_VIDEL || defined(MACHINE_AMIGA)
+#if CONF_WITH_VIDEL || defined(MACHINE_AMIGA) || defined(MACHINE_DDRAIG68K)
             else if (newres == FALCON_REZ)
                 shel_write(SHW_RESCHNG,newmode,1,NULL,NULL);
 #endif

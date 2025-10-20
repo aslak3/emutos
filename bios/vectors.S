@@ -41,6 +41,10 @@
         .globl  _call_etv_critic
         .globl  _default_etv_critic
 
+#if CONF_WITH_DUART
+        .globl  _duart_interrupt
+#endif
+
 // ==== References ===========================================================
 
         // TOS System variables
@@ -96,6 +100,7 @@
         .extern _savptr
         .extern _xbios_do_unimpl
         .extern _kcl_hook
+        .extern _int_ikbd_duart
 
         .text
 
@@ -489,7 +494,12 @@ vbl_end:
         addq.w  #1,_vblsem.w
 #endif
 
-#if CONF_WITH_ATARI_VIDEO
+#ifdef CONF_WITH_DDRAIGVGA_CONSOLE
+        # Clear the gfxvga VBL interrupt (write status register)
+        move.w #4,0xf7f500              //_ddraigvga_base
+#endif
+
+#if CONF_WITH_ATARI_VIDEO || CONF_WITH_VBL_RTE
         rte
 #else
         rts
@@ -530,8 +540,11 @@ _int_timerc:
         movem.l d0-d7/a0-a6,-(sp)       // save registers
 #endif
 
+#ifndef CONF_WITH_VT82C42
+        // The VT82C42 handles the key repeats
         // repeat keys
         jsr     _kb_timerc_int
+#endif
 
 #if CONF_WITH_YM2149
         // dosound support
@@ -800,6 +813,89 @@ _sccb_es_interrupt:
 
 #endif  //CONF_WITH_SCC
 
+#if CONF_WITH_DUART
+// ==== Motorola 68681 Dual UART Interrupt Handler ====
+// We look at three sources of interrupts from the DUART:
+//     - Counter/Timer Ready (bit 3 of Interrupt Status register)
+//     - Channel A Receive Ready (bit 1 of the ISR).
+//     - Channel B Receive Ready (bit 5 of the ISR) if enabled.
+
+_duart_interrupt:
+#ifdef __mcoldfire__
+        lea     -16(sp),sp
+        movem.l d0-d1/a0-a1,(sp)
+#else
+        movem.l d0-d1/a0-a1,-(sp)
+#endif
+        lea     DUART_BASE, a0
+ #if MACHINE_DDRAIG68K
+        move.b  10(a0), d0            // grab the Interrupt Status Register
+ #else
+        move.b  11(a0), d0            // grab the Interrupt Status Register
+ #endif
+ #if CONF_DUART_TIMER_C
+        btst.b  #3, d0                // Is Counter Ready (bit 3) set?
+        beq     duart_check_rx_2      //    No, skip timer handling code
+
+// Call vector_5ms
+// As it will return with RTE, we must setup a proper stack frame
+        tst.w   _longframe
+        beq     _duart_short_frame
+        move.w  #0, -(sp)             // Format code for 68010 stack frame.
+_duart_short_frame:
+        pea     duart_check_rx(pc)    // Return address
+        move.w  sr, -(sp)             // Status Register
+
+        .extern _vector_5ms
+        move.l  _vector_5ms, a0
+        jmp     (a0)                  // Call the 200 Hz system timer
+ #endif
+duart_check_rx:
+        lea     DUART_BASE, a0
+ #if CONF_DUART_TIMER_C
+ #if MACHINE_DDRAIG68K
+        tst.b   0x1e(a0)              // Send stop counter to ack timer interrupt. Does not actually stop since in timer mode.
+ #else
+        tst.b   0x1f(a0)              // Send stop counter to ack timer interrupt. Does not actually stop since in timer mode.
+ #endif
+ #endif
+duart_check_rx_2:
+#if MACHINE_DDRAIG68K
+        move.b  10(a0), d0            // Get the ISR again
+#else
+        move.b  11(a0), d0            // Get the ISR again
+#endif
+        btst.b  #1, d0                // Is the Chan A Receive Ready (bit 1) set?
+#ifndef CONF_WITH_DUART_CHANNEL_B
+        beq     duart_intr_done       //    No, skip serial handling code
+#else
+        beq     duart_check_channel_b  // No, but check channel B
+#endif
+        jbsr    _duart_rs232_interrupt_handler_channel_a
+duart_check_channel_b:
+        lea     DUART_BASE, a0
+#if MACHINE_DDRAIG68K
+        move.b  10(a0), d0            // Get the ISR again
+#else
+        move.b  11(a0), d0            // Get the ISR again
+#endif
+        btst.b  #5, d0                // Is the Chan B Receive Ready (bit 5) set?
+        beq     duart_intr_done
+#if CONF_WITH_IKBD_DUART
+        jbsr    _int_ikbd_duart
+#elif CONF_WITH_DUART_CHANNEL_B
+        jbsr    _duart_rs232_interrupt_handler_channel_b
+#endif
+duart_intr_done:
+#ifdef __mcoldfire__
+        movem.l (sp),d0-d1/a0-a1
+        lea     16(sp),sp
+#else
+        movem.l (sp)+,d0-d1/a0-a1
+#endif
+        rte
+
+#endif /* CONF_WITH_DUART */
 
 // ==== Critical error handler functions =====================================
 

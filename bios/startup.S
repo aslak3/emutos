@@ -8,8 +8,12 @@
  */
 
 #include "asmdefs.h"
-#include "../obj/header.h"
 
+#ifdef WITH_CMAKE
+  #include "header.h"
+#else
+  #include "../obj/header.h"
+#endif
 // ==== Defines ==============================================================
 
         .equ    cart_base, 0x00fa0000  // Base of ROM port cartridge
@@ -337,6 +341,12 @@ _realmain:
         // this is useless on cold boot,
         // but it matters for software reset
         move    #0x2700,sr
+
+#if defined(MACHINE_ROBERTS7531)
+        // This SBC requires a write to 0x00B0xxxx to map RAM 
+        // to 0x0. ROM (at 0x00700000) is mapped there on boot.
+        move.b  #0,0x00B00000
+#endif
 
 #if CONF_WITH_TT_MMU
         // TT TOS does the following even before reset; it is

@@ -14,6 +14,14 @@
  * to allow #include, #define, #if, etc. */
 #include "include/config.h"
 
+#ifndef LOWSTRAM_OBJ
+  #define LOWSTRAM_OBJ  obj/lowstram.o
+#endif
+
+#ifndef LINEAVARS_OBJ
+  #define LINEAVARS_OBJ obj/lineavars.o
+#endif
+
 /* Create a plain binary file, without any header */
 OUTPUT_FORMAT(binary)
 
@@ -30,6 +38,14 @@ OUTPUT_FORMAT(binary)
 # define ROM_ORIGIN 0x00fa0000
 #elif defined(TARGET_192)
 # define ROM_ORIGIN 0x00fc0000
+#elif defined(MACHINE_ROSCO_V2)
+# define ROM_ORIGIN 0xb0000 
+#elif defined(MACHINE_MEGA_68000)
+# define ROM_ORIGIN 0x00F80000
+#elif defined(MACHINE_DDRAIG68K)
+# define ROM_ORIGIN 0x00800000
+#elif defined(MACHINE_ROBERTS7531)
+# define ROM_ORIGIN 0x700000
 #else
 # define ROM_ORIGIN 0x00e00000
 #endif
@@ -108,8 +124,8 @@ SECTIONS
     .low_stram : SUBALIGN(2)
     {
         __low_stram_start = .;
-        obj/lowstram.o(.bss COMMON)
-        obj/lineavars.o(.bss COMMON)
+        LOWSTRAM_OBJ(.bss COMMON)
+        LINEAVARS_OBJ(.bss COMMON)
         __low_stram_end = .;
         ASSERT(ABSOLUTE(_shifty) < 0x8000, "error: bad _shifty address");
         ASSERT((ABSOLUTE(_dskbuf) & 3) == 0, "error: bad _dskbuf alignment");

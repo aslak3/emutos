@@ -320,6 +320,10 @@ static void bios_init(void)
     }
 #endif
 
+#if CONF_WITH_DUART
+    if (has_duart) boot_status |= DUART_AVAILABLE;
+#endif
+
     /*
      * Initialize the screen mode
      * Must be done before calling linea_init().
@@ -440,6 +444,10 @@ static void bios_init(void)
 #if CONF_WITH_SCC
     if (has_scc)
         boot_status |= SCC_AVAILABLE;   /* track progress */
+#endif
+#if CONF_WITH_DUART
+    if (has_duart)
+        boot_status |= DUART_AVAILABLE; /* track process */
 #endif
 
     /*
@@ -773,6 +781,32 @@ BOOL can_shutdown(void)
 
 #endif /* CONF_WITH_SHUTDOWN */
 
+#if CONF_WITH_EARLY_MFP
+static void early_init_mfp(void)
+{
+    volatile MFP *mfp = MFP_BASE;
+
+    /* Set all GPIOs to outputs. */
+
+    mfp->gpip = 0xFF;
+
+    /*
+     * Set up TIMER D to provide the transmit and receive clocks.
+     * Prescale is set divide by 4, count is set for 1. In async mode,
+     * there is another divide by 16, so we have 7,372,800/16/4/2 = 57600.
+     */
+
+    mfp->tddr = 0x01;
+    mfp->tcdcr = 0x01;
+
+    /* On reset, all MFP interrupts are disabled and masked, which is what we want. */
+
+    mfp->ucr = 0x88;  /* /16 clock, async, 8N1 */
+    mfp->tsr = 0x05;  /* Set pin state high and enable transmitter */
+    mfp->rsr = 0x01;  /* enable the receiver */
+}
+#endif
+
 /*
  * biosmain - c part of the bios init code
  *
@@ -786,6 +820,11 @@ void biosmain(void)
 
     BOOL show_initinfo;         /* TRUE if welcome screen must be displayed */
     ULONG shiftbits;
+
+#if CONF_WITH_EARLY_MFP
+    early_init_mfp();
+    boot_status |= RS232_AVAILABLE;     /* track progress */
+#endif
 
     bios_init();                /* Initialize the BIOS */
 
