@@ -212,8 +212,6 @@ extern PFVOID vbl_list[8]; /* Default array for vblqueue */
 
 static void bios_init(void)
 {
-    LED = 1;
-
     KDEBUG(("bios_init()\n"));
 
     /* initialize Native Features, if available
@@ -784,6 +782,8 @@ BOOL can_shutdown(void)
 
 void biosmain(void)
 {
+    // LED = (unsigned char) 1;
+
     BOOL show_initinfo;         /* TRUE if welcome screen must be displayed */
     ULONG shiftbits;
 

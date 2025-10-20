@@ -676,8 +676,11 @@
 #  define CONF_ATARI_HARDWARE 0
 # endif
 # ifndef CONF_STRAM_SIZE
-#  define CONF_STRAM_SIZE 32*1024*1024
+#  define CONF_STRAM_SIZE 1*1024*1024
 # endif
+#ifndef CONF_WITH_TTRAM
+# define CONF_WITH_TTRAM 0
+#endif
 # ifndef CONF_WITH_IDE
 #  define CONF_WITH_IDE 1
 # endif
@@ -696,12 +699,11 @@
 # ifndef CONF_WITH_BUS_ERROR
 #  define CONF_WITH_BUS_ERROR 1
 # endif
-# ifdef CONF_SERIAL_CONSOLE
-#  define CONF_SERIAL_CONSOLE 0
-# endif
+/*
 # ifndef CONF_VRAM_ADDRESS
-#  define CONF_VRAM_ADDRESS 0x90000000
+#define CONF_VRAM_ADDRESS 0x90000000
 # endif
+*/
 # ifndef CONF_WITH_IKBD_SC26C94
 #  define CONF_WITH_IKBD_SC26C94 1
 # endif
@@ -711,8 +713,6 @@
 # ifndef CONF_SERIAL_CONSOLE
 #  define CONF_SERIAL_CONSOLE 1
 # endif
-
-#  define EMUTOS_LIVES_IN_RAM 1
 
 #endif
 
