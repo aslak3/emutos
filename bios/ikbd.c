@@ -45,6 +45,8 @@
 #include "duart68681.h"
 #include "vt82c42.h"
 
+#include "maxi030.h"
+
 /* forward declarations */
 static WORD convert_scancode(UBYTE *scancodeptr);
 
@@ -238,6 +240,9 @@ void push_ascii_ikbdiorec(UBYTE ascii)
 
 LONG bconstat2(void)
 {
+    volatile UBYTE *porta_base = (volatile UBYTE *) BASEPA26C94;
+    return (porta_base[SR26C94] & 0x01) ? -1 : 0;
+
 #if CONF_SERIAL_CONSOLE_POLLING_MODE
     /* Poll the serial port */
     LONG stat = bconstat(1);
@@ -260,6 +265,10 @@ LONG bconin2(void)
         stop_until_interrupt();
 #endif
     }
+
+    volatile UBYTE *porta_base = (volatile UBYTE *) BASEPA26C94;
+    return porta_base[RXFIFO26C94];
+
 #if CONF_SERIAL_CONSOLE_POLLING_MODE
     /* Poll the serial port */
     UBYTE ascii = (UBYTE)bconin(1);
@@ -936,7 +945,6 @@ LONG bcostat4(void)
         /* Data register not empty */
         return 0;               /* not OK */
     }
->>>>>>> dragon/wip
 #else
     return -1; /* OK (but output will be ignored) */
 #endif
@@ -1025,6 +1033,10 @@ static UBYTE ikbd_readb(WORD timeout)
     for (i = 0; i < timeout; i++) {
         if (porta_base[SR26C94] & 0x01) {
             return porta_base[RXFIFO26C94];
+        }
+        
+        delay_loop(loopcount_1_msec);
+    }
 
 #elif CONF_WITH_IKBD_ACE
 
@@ -1086,6 +1098,10 @@ static UBYTE ikbd_readb(WORD timeout)
 static void ikbd_reset(void)
 {
     UBYTE version;
+
+    ////////////////////////////////////
+    return;
+    ////////////////////////////////////
 
     ikbd_writew(0x8001);            /* reset */
 

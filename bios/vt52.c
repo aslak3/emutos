@@ -135,11 +135,19 @@ static void (* const cntl_tab[])(void) = {
 };
 
 
+#include "sc26c94.h"
+
 /*
  * cputc - console output
  */
 void cputc(WORD ch)
 {
+    volatile UBYTE *porta_base = (volatile UBYTE *) BASEPA26C94;
+    while(!(porta_base[SR26C94] & 0x04));
+    porta_base[TXFIFO26C94] = LOBYTE(ch);
+    return;
+    ///////////////////////////
+
 #if CONF_SERIAL_CONSOLE && !CONF_SERIAL_CONSOLE_ANSI
     /* When no translation needs to be performed, output the character
      * immediately and unconditionally to the serial port.
@@ -329,7 +337,6 @@ static void set_bg(void)
 {
     con_state = get_bg_col;             /* Next char is the BG color */
 }
-
 
 /*
  * clear_and_home - Clear Screen and Home Cursor

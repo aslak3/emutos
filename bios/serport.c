@@ -109,6 +109,7 @@ static const EXT_IOREC iorec_init = {
 
 #if BCONMAP_AVAILABLE
 #if CONF_WITH_DUART
+
 /* For the DUART, we place the ports at Bconmap devices 10 and 11 */
 # define MAPTABLE_SIZE 6
 #else

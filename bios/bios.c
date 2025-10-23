@@ -212,6 +212,11 @@ extern PFVOID vbl_list[8]; /* Default array for vblqueue */
 
 static void bios_init(void)
 {
+#if defined(MACHINE_MAXI030)
+    maxi030_init();
+    KDEBUG(("maxi030_init()\n"));
+#endif
+
     KDEBUG(("bios_init()\n"));
 
     /* initialize Native Features, if available
@@ -387,11 +392,6 @@ static void bios_init(void)
      */
     KDEBUG(("init_system_timer()\n"));
     init_system_timer();
-
-#if defined(MACHINE_MAXI030)
-    maxi030_init();
-    KDEBUG(("maxi030_init()\n"));
-#endif
 
     /*
      * Now we can enable interrupts.  Although VBL & timer interrupts will
@@ -816,8 +816,6 @@ static void early_init_mfp(void)
 
 void biosmain(void)
 {
-    // LED = (unsigned char) 1;
-
     BOOL show_initinfo;         /* TRUE if welcome screen must be displayed */
     ULONG shiftbits;
 

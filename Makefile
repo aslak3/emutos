@@ -231,7 +231,7 @@ PCREL_LDFLAGS = -Wl,--oformat=binary,-Ttext=0,--entry=0
 # C compiler
 CC = $(TOOLCHAIN_PREFIX)gcc
 CPP = $(CC) -E
-CPUFLAGS = -m68030
+CPUFLAGS = -m68000
 MULTILIBFLAGS = $(CPUFLAGS) -mshort
 INC = -Iinclude
 OTHERFLAGS = -fomit-frame-pointer -fno-common
@@ -313,10 +313,6 @@ bios_src +=  memory.S processor.S vectors.S aciavecs.S bios.c xbios.c acsi.c \
 
 ifeq (1,$(COLDFIRE))
   bios_src += coldfire.c coldfire2.S spi_cf.c
-endif
-
-ifeq (1,$(MAXI030))
-  bios_src += maxi030.c maxi0302.S
 endif
 
 #
@@ -658,29 +654,6 @@ amiga:
 
 $(ROM_AMIGA): emutos.img mkrom
 	./mkrom amiga $< $(ROM_AMIGA)
-
-#
-# MAXI030 Image
-#
-
-TOCLEAN += *.img
-
-IMG_MAXI030 = emutos-maxi030.img
-MAXI030_DEFS =
-
-.PHONY: maxi030
-NODEP += maxi030
-maxi030: UNIQUE = $(COUNTRY)
-maxi030: OPTFLAGS = $(SMALL_OPTFLAGS)
-maxi030: override DEF += -DTARGET_MAXI030_IMG $(MAXI030_DEFS)
-maxi030:
-	@echo "# Building MAXI030 EmuTOS into $(IMG_MAXI030)"
-	$(MAKE) MAXI030=1 CPUFLAGS='$(CPUFLAGS)' DEF='$(DEF)' OPTFLAGS='$(OPTFLAGS)' UNIQUE=$(UNIQUE) IMG_MAXI030=$(IMG_MAXI030) $(IMG_MAXI030)
-	@MEMBOT=$(call SHELL_SYMADDR,__end_os_stram,emutos.map);\
-	echo "# RAM used: $$(($$MEMBOT)) bytes ($$(($$MEMBOT - $(MEMBOT_TOS206))) bytes more than TOS 2.06)"
-
-$(IMG_MAXI030): emutos.img
-	cp $< $(IMG_MAXI030)
 
 # Special Amiga ROM optimized for Vampire V2
 

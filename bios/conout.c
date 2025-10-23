@@ -25,8 +25,7 @@
 #include "conout.h"
 #include "../vdi/vdi_defs.h"    /* for phys_work stuff */
 
-#if !defined(CONF_WITH_XOSERA_CONSOLE) && !defined(CONF_WITH_DDRAIGVGA_CONSOLE)
-
+#if !CONF_WITH_XOSERA_CONSOLE && !CONF_WITH_DDRAIGVGA_CONSOLE
 #define PLANE_OFFSET    2       /* interleaved planes */
 
 #if CONF_WITH_VIDEL
@@ -603,13 +602,16 @@ void blank_out(int topx, int topy, int botx, int boty)
     int pair, pairs, row, rows, offs;
     UBYTE *addr;
 
+    ////////////////////////////////
+    return;
+    ////////////////////////////////
+
 #if CONF_WITH_VIDEL
     if (TRUECOLOR_MODE) {
         blank_out16(topx, topy, botx, boty);
         return;
     }
 #endif
-
     color = v_col_bg;                   /* bg color value */
 
     addr = cell_addr(topx, topy);       /* running pointer to screen */

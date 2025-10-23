@@ -675,54 +675,7 @@
 #include "config_roberts7531.h"
 #include "config_mega-68000.h"
 #include "config_ddraig68k.h"
-
-/*
- * Defaults for the MAXI030 machine
- */
-#ifdef MACHINE_MAXI030
-# ifndef CONF_ATARI_HARDWARE
-#  define CONF_ATARI_HARDWARE 0
-# endif
-# ifndef CONF_STRAM_SIZE
-#  define CONF_STRAM_SIZE 1*1024*1024
-# endif
-#ifndef CONF_WITH_TTRAM
-# define CONF_WITH_TTRAM 0
-#endif
-# ifndef CONF_WITH_IDE
-#  define CONF_WITH_IDE 1
-# endif
-# ifndef CONF_WITH_FLEXCAN
-#  define CONF_WITH_FLEXCAN 0
-# endif
-# ifndef CONF_DETECT_FIRST_BOOT_WITHOUT_MEMCONF
-#  define CONF_DETECT_FIRST_BOOT_WITHOUT_MEMCONF 0
-# endif
-# ifndef ALWAYS_SHOW_INITINFO
-#  define ALWAYS_SHOW_INITINFO 1
-# endif
-# ifndef AES_STACK_SIZE
-#  define AES_STACK_SIZE 2048   /* in LONGs */
-# endif
-# ifndef CONF_WITH_BUS_ERROR
-#  define CONF_WITH_BUS_ERROR 1
-# endif
-/*
-# ifndef CONF_VRAM_ADDRESS
-#define CONF_VRAM_ADDRESS 0x90000000
-# endif
-*/
-# ifndef CONF_WITH_IKBD_SC26C94
-#  define CONF_WITH_IKBD_SC26C94 1
-# endif
-# ifndef CONF_SERIAL_CONSOLE_POLLING_MODE
-#  define CONF_SERIAL_CONSOLE_POLLING_MODE 1
-# endif
-# ifndef CONF_SERIAL_CONSOLE
-#  define CONF_SERIAL_CONSOLE 1
-# endif
-
-#endif
+#include "config_maxi030.h"
 
 /*
  * By default, EmuTOS is built for Atari ST/TT/Falcon compatible hardware
@@ -1143,6 +1096,11 @@
  */
 #ifndef CONF_WITH_IKBD_ACE
 # define CONF_WITH_IKBD_ACE 0
+#endif
+
+
+#ifndef CONF_WITH_IKBD_SC26C94
+# define CONF_WITH_IKBD_SC26C94 0
 #endif
 
 /*
@@ -1687,6 +1645,15 @@
 # define DEFAULT_BAUDRATE B9600
 #endif
 
+/*
+ * This is only used by Ddraig
+ */
+#ifndef CONF_WITH_DDRAIG_VGA
+# define CONF_WITH_DDRAIG_VGA 0
+#endif
+#ifndef CONF_WITH_DDRAIGVGA_CONSOLE
+# define CONF_WITH_DDRAIGVGA_CONSOLE 0
+#endif
 /*
  * Retry count for the internal_inquire() used to detect the presence of
  * a physical hard disk drive

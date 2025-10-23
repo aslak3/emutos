@@ -80,7 +80,11 @@ if (COLDFIRE)
     set(bios_src ${bios_src} bios/codefile.c bios/coldfile2.S spi_cf.c)
 endif()
 
-set(bios_src ${bios_src} bios/conout_xosera.c bios/xosera.c bios/conout_ddraig.c bios/ddraig.c bios/ddraig_vga.c bios/vt82c42.c)
+set(ddraig_src bios/conout_ddraig.c bios/ddraig.c bios/ddraig_vga.c bios/vt82c42.c)
+
+set(maxi030_src bios/maxi030.c)
+
+set(bios_src ${bios_src} ${ddraig_src} ${maxi030_src} bios/conout_xosera.c bios/xosera.c)
 
 #
 # source code in bdos/
@@ -359,6 +363,4 @@ configure_target(bitsy_v1_uk     MACHINE_BITSY_V1         512 "-O2" UK WITH_AES 
 configure_target(roberts7531     MACHINE_ROBERTS7531      256 "-Os" US WITH_AES ON  WITH_CLI ON)
 configure_target(mega-68000      MACHINE_MEGA_68000       256 "-Os" UK WITH_AES OFF WITH_CLI ON)
 configure_target(ddraig68k       MACHINE_DDRAIG68K        256 "-Os" UK WITH_AES ON WITH_CLI ON)
-
-
-
+configure_target(maxi030         MACHINE_MAXI030          256 "-Os" UK WITH_AES ON WITH_CLI ON)

@@ -35,18 +35,16 @@ volatile int vbl_count = 0;
 
 void maxi030_init(void)
 {
-    // LED = (unsigned char) 1;
-
     state = STATE_IDLE;
 
     // VL6AUTOVECTOR = (uint32_t) maxi030_int_vbl;
     // VL5AUTOVECTOR = (uint32_t) maxi030_int_mouse;
     VL1AUTOVECTOR = (uint32_t) maxi030_int_timer;
 
-	TIMERCOUNTU = (unsigned char) 0x03;
-    TIMERCOUNTM = (unsigned char) 0x0d;
-    TIMERCOUNTL = (unsigned char) 0x40;
-    TIMERCONTROL = (unsigned char) 0x01;
+	TIMERCOUNTU = 0x03;
+    TIMERCOUNTM = 0x0d;
+    TIMERCOUNTL = 0x40;
+    TIMERCONTROL = 0x01;
 
     volatile UBYTE *porta_base = (volatile UBYTE *) BASEPA26C94;
     porta_base[CR26C94] = 0x05;
@@ -54,7 +52,7 @@ void maxi030_init(void)
     porta_base[MRX26C94] = 0x07;
     porta_base[CSR26C94] = 0xcc;    
 
-    INTPASS = (unsigned char) 0x01;
+    INTPASS = 0x01;
         
 //   VCARDSTMODE = 0x0001;
 
@@ -131,6 +129,7 @@ static void  __attribute__ ((interrupt)) maxi030_int_mouse(void)
 
 static void  __attribute__ ((interrupt)) maxi030_int_timer(void)
 {
+    LED = 1;
     TIMERCONTROL = 1;
 
     int_timerc();

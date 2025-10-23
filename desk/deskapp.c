@@ -1087,7 +1087,7 @@ static WORD desk_get_videomode(void)
 
 #ifdef MACHINE_AMIGA
     mode = amiga_vgetmode();
-#elif MACHINE_DDRAIG68K
+#elif defined(MACHINE_DDRAIG68K)
     mode = ddraig_vgetmode();
 #else
 

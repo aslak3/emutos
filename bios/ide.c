@@ -120,7 +120,7 @@ struct IDE
 #define IDE_WRITE_COMMAND_HEAD(i,a,b) \
     { i->head = b; i->command = a; }
 
-#if defined(MACHINE_TINY68K) || defined(MACHINE_ROBERTS7531) || defined(MACHINE_MEGA_68000) || defined(MACHINE_DDRAIG68K)
+#if defined(MACHINE_TINY68K) || defined(MACHINE_ROBERTS7531) || defined(MACHINE_MEGA_68000) || defined(MACHINE_DDRAIG68K) || defined(MACHINE_MAXI030)
 # define IDE_WRITE_CONTROL(i,a)
 # define IDE_READ_ALT_STATUS(i)    i->command
 #else
@@ -141,7 +141,7 @@ struct IDE
 #endif /* MACHINE_M548X */
 
 /* the data register is naturally byteswapped on some hardware */
-#if defined(MACHINE_AMIGA) || defined MACHINE_MAXI030
+#if defined(MACHINE_AMIGA) || defined(MACHINE_MAXI030)
 #define IDE_DATA_REGISTER_IS_BYTESWAPPED TRUE
 #else
 #define IDE_DATA_REGISTER_IS_BYTESWAPPED FALSE
@@ -177,37 +177,6 @@ struct IDE
 #define ide_put_and_incr(src,dst) asm volatile("move.w (%0)+,(%1)" : "=a"(src): "a"(dst), "0"(src));
 #endif
 
-#ifdef MACHINE_MAXI030
-
-#define NUM_IDE_INTERFACES 1
-
-struct IDE
-{
-    UWORD data;
-    UBYTE filler02[2];
-    UBYTE filler04;
-    UBYTE features; /* Read: error */
-    UBYTE filler06[3];
-    UBYTE sector_count;
-    UBYTE filler0a[3];
-    UBYTE sector_number;
-    UBYTE filler0e[3];
-    UBYTE cylinder_low;
-    UBYTE filler12[3];
-    UBYTE cylinder_high;
-    UBYTE filler16[3];
-    UBYTE head;
-    UBYTE filler1a[3];
-    UBYTE command;  /* Read: status */
-    UBYTE filler1e[27];
-    UBYTE control;  /* Read: Alternate status */
-    UBYTE filler3a[6];
-};
-
-#define ide_interface           ((volatile struct IDE *)0x44020000)
-
-#endif
-
 #if CONF_ATARI_HARDWARE || CONF_ATARI_IDE
 
 #ifdef MACHINE_FIREBEE
@@ -216,7 +185,7 @@ struct IDE
 #define NUM_IDE_INTERFACES  1   /* (e.g. stacked ST Doubler) */
 #endif
 
-#if defined(MACHINE_TINY68K) || defined(MACHINE_ROBERTS7531) || defined(MACHINE_MEGA_68000) || defined(MACHINE_DDRAIG68K)
+#if defined(MACHINE_TINY68K) || defined(MACHINE_ROBERTS7531) || defined(MACHINE_MEGA_68000) || defined(MACHINE_DDRAIG68K) || defined(MACHINE_MAXI030)
 
 struct IDE
 {
@@ -251,6 +220,8 @@ struct IDE
   #define ide_interface           ((volatile struct IDE *)0x00AE0000)
 #elif defined(MACHINE_DDRAIG68K)
   #define ide_interface           ((volatile struct IDE *)0xFFF7F300)
+#elif defined(MACHINE_MAXI030)
+  #define ide_interface           ((volatile struct IDE *)0x12345678)
 #else
   #define ide_interface           ((volatile struct IDE *)0x00a00000)
 #endif
@@ -498,11 +469,8 @@ static void set_packet_size(WORD dev,UWORD config);
  * we do not check for the FireBee, since there are always exactly
  * two interfaces, or for non-Atari hardware.
  */
-<<<<<<< HEAD
-#if CONF_ATARI_HARDWARE && !defined(MACHINE_FIREBEE) || defined MACHINE_MAXI030
-=======
-#if (CONF_ATARI_HARDWARE || CONF_ATARI_IDE) && !defined(MACHINE_FIREBEE)
->>>>>>> dragon/wip
+ 
+#if (CONF_ATARI_HARDWARE || CONF_ATARI_IDE) && !defined(MACHINE_FIREBEE) || defined MACHINE_MAXI030
 
 /* used by duplicate interface detection logic */
 #define SECNUM_MAGIC    0xcc
@@ -594,7 +562,7 @@ static int ide_interface_exists(WORD ifnum, LONG timeout)
     volatile struct IDE *twisted_iface = (volatile struct IDE *)(((ULONG)ifinfo[ifnum].base_address)-1);
     enum ide_if_status regular_iface_status = IDE_IF_NOTCHECKED;
     enum ide_if_status twisted_iface_status = IDE_IF_NOTPRESENT;
-#if !defined(MACHINE_MEGA_68000) && !defined(MACHINE_DDRAIG68K)
+#if !defined(MACHINE_MEGA_68000) && !defined(MACHINE_DDRAIG68K) && !defined(MACHINE_MAXI030)
     BOOL allow_twisted = check_read_byte((long)&twisted_iface->control);
 #else
     BOOL allow_twisted = FALSE;
@@ -742,7 +710,7 @@ void ide_init(void)
     if (!has_ide)
         return;
 
-#if ((CONF_ATARI_HARDWARE || CONF_ATARI_IDE) && !defined(MACHINE_FIREBEE) || defined MACHINE_MAXI030
+#if ((CONF_ATARI_HARDWARE || CONF_ATARI_IDE) && !defined(MACHINE_FIREBEE)) || defined MACHINE_MAXI030
     /* Reject 'ghost' interfaces & detect twisted cables.
      * We wait a max time for BSY to drop on all IDE interface
      * since this is called during initialisation, which can be
